@@ -79,7 +79,7 @@ while True:
             prompt,
             do_sample=True,
             num_return_sequences=1,
-            max_new_tokens=1024,
+            max_new_tokens=200,
             temperature=0.8,
             top_p=0.95,
             top_k=50,
