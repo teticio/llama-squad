@@ -113,7 +113,9 @@ class LlamaForMaskedCausalLM(LlamaForCausalLM):
             masked_loss = torch.where(
                 shift_attention_mask, loss, torch.zeros_like(loss)
             )
-            loss = masked_loss.sum() / shift_attention_mask.sum()
+            loss = masked_loss.sum() / (
+                shift_attention_mask.sum() - (shift_labels == -100).sum()
+            )
 
         if not return_dict:
             output = (logits,) + outputs[1:]
