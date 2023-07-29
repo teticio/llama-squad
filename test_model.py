@@ -1,7 +1,8 @@
-from datasets import load_from_disk
 import random
+
 import torch
 import transformers
+from datasets import load_from_disk
 
 pipeline = transformers.pipeline(
     "text-generation",
@@ -20,7 +21,7 @@ pipeline = transformers.pipeline(
 while True:
     dataset_dict = load_from_disk("data/squad_v2")
     text = random.choice(dataset_dict["test"])["text"]
-    question = text[:text.find("[/INST] ") + len("[/INST] ")]
+    question = text[: text.find("[/INST] ") + len("[/INST] ")]
     answer = text[text.rfind("```") :]
     print(f"Question: {question}")
     print(f"Correct answer: {answer}")
@@ -33,8 +34,8 @@ while True:
         if instruction == -1:
             break
         instruction += len("[/INST] ")
-        prompt += text[: instruction] + "</s>"
-        text = text[instruction :]
+        prompt += text[:instruction] + "</s>"
+        text = text[instruction:]
         text = text[text.find("<s>") :]
         response = pipeline(
             prompt,

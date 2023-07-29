@@ -2,7 +2,6 @@ from datasets import Dataset, DatasetDict, load_dataset
 
 from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
 
-
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
 REASONING_LENGTH = 100
 reasoning = " ".join(["blah"] * REASONING_LENGTH)

@@ -20,14 +20,11 @@ import torch
 from datasets import load_from_disk
 from peft import LoraConfig
 from transformers import (
-    # AutoModelForCausalLM,
-    AutoTokenizer,
+    AutoTokenizer,  # AutoModelForCausalLM,
     BitsAndBytesConfig,
     HfArgumentParser,
-    AutoTokenizer,
     TrainingArguments,
 )
-
 from trl import SFTTrainer
 
 from llama_mask import LlamaForMaskedCausalLM
@@ -35,7 +32,7 @@ from llama_mask import LlamaForMaskedCausalLM
 # This example fine-tunes Llama v2 model on Guanace dataset
 # using QLoRA. At the end of the script we perform merging the weights
 # Use it by correctly passing --model_name argument when running the
-# script. 
+# script.
 #
 # Versions used:
 # accelerate == 0.21.0
@@ -47,13 +44,16 @@ from llama_mask import LlamaForMaskedCausalLM
 # For models that have `config.pretraining_tp > 1` install:
 # pip install git+https://github.com/huggingface/transformers.git
 
+
 @dataclass
 class ScriptArguments:
     """
     These arguments vary depending on how many GPUs you have, what their capacity and features are, and what size model you want to train.
     """
 
-    local_rank: Optional[int] = field(default=-1, metadata={"help": "Used for multi-gpu"})
+    local_rank: Optional[int] = field(
+        default=-1, metadata={"help": "Used for multi-gpu"}
+    )
 
     per_device_train_batch_size: Optional[int] = field(default=4)
     per_device_eval_batch_size: Optional[int] = field(default=1)
@@ -69,7 +69,7 @@ class ScriptArguments:
         default="meta-llama/Llama-2-7b-hf",
         metadata={
             "help": "The model that you want to train from the Hugging Face hub. E.g. gpt2, gpt2-xl, bert, etc."
-        }
+        },
     )
     dataset_name: Optional[str] = field(
         default="timdettmers/openassistant-guanaco",
@@ -117,25 +117,37 @@ class ScriptArguments:
     )
     lr_scheduler_type: str = field(
         default="constant",
-        metadata={"help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"},
+        metadata={
+            "help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"
+        },
     )
-    max_steps: int = field(default=10000, metadata={"help": "How many optimizer update steps to take"})
-    warmup_ratio: float = field(default=0.03, metadata={"help": "Fraction of steps to do a warmup for"})
+    max_steps: int = field(
+        default=10000, metadata={"help": "How many optimizer update steps to take"}
+    )
+    warmup_ratio: float = field(
+        default=0.03, metadata={"help": "Fraction of steps to do a warmup for"}
+    )
     group_by_length: bool = field(
         default=True,
         metadata={
             "help": "Group sequences into batches with same length. Saves memory and speeds up training considerably."
         },
     )
-    save_steps: int = field(default=10, metadata={"help": "Save checkpoint every X updates steps."})
-    logging_steps: int = field(default=10, metadata={"help": "Log every X updates steps."})
+    save_steps: int = field(
+        default=10, metadata={"help": "Save checkpoint every X updates steps."}
+    )
+    logging_steps: int = field(
+        default=10, metadata={"help": "Log every X updates steps."}
+    )
     merge_and_push: Optional[bool] = field(
         default=False,
         metadata={"help": "Merge and push weights after training"},
     )
     output_dir: str = field(
         default="./results",
-        metadata={"help": "The output directory where the model predictions and checkpoints will be written."},
+        metadata={
+            "help": "The output directory where the model predictions and checkpoints will be written."
+        },
     )
 
 
@@ -157,33 +169,37 @@ def create_and_prepare_model(args):
         major, _ = torch.cuda.get_device_capability()
         if major >= 8:
             print("=" * 80)
-            print("Your GPU supports bfloat16, you can accelerate training with the argument --bf16")
+            print(
+                "Your GPU supports bfloat16, you can accelerate training with the argument --bf16"
+            )
             print("=" * 80)
 
     # Load the entire model on the GPU 0
     # switch to `device_map = "auto"` for multi-GPU
-    device_map = "auto" #{"": 0}
+    device_map = "auto"  # {"": 0}
 
     model = LlamaForMaskedCausalLM.from_pretrained(
-        args.model_name, 
-        quantization_config=bnb_config, 
-        device_map=device_map, 
+        args.model_name,
+        quantization_config=bnb_config,
+        device_map=device_map,
         use_auth_token=True,
         trust_remote_code=True,
     )
-    
+
     # check: https://github.com/huggingface/transformers/pull/24906
-    model.config.pretraining_tp = 1 
+    model.config.pretraining_tp = 1
 
     peft_config = LoraConfig(
         lora_alpha=script_args.lora_alpha,
         lora_dropout=script_args.lora_dropout,
         r=script_args.lora_r,
         bias="none",
-        task_type="CAUSAL_LM", 
+        task_type="CAUSAL_LM",
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(script_args.model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        script_args.model_name, trust_remote_code=True
+    )
     tokenizer.pad_token = tokenizer.eos_token
 
     return model, peft_config, tokenizer
@@ -236,7 +252,9 @@ if script_args.merge_and_push:
 
     from peft import AutoPeftModelForCausalLM
 
-    model = AutoPeftModelForCausalLM.from_pretrained(output_dir, device_map="auto", torch_dtype=torch.bfloat16)
+    model = AutoPeftModelForCausalLM.from_pretrained(
+        output_dir, device_map="auto", torch_dtype=torch.bfloat16
+    )
     model = model.merge_and_unload()
 
     output_merged_dir = os.path.join(script_args.output_dir, "final_merged_checkpoint")
