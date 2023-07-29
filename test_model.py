@@ -56,7 +56,7 @@ while True:
     dataset_dict = load_from_disk("data/squad_v2")
     text = random.choice(dataset_dict["test"])["text"]
     question = text[: text.find("[/INST] ") + len("[/INST] ")]
-    answer = text[text.rfind("```") :]
+    answer = text[text.rfind("```json") :]
     print(f"Question: {question}")
     print(f"Correct answer: {answer}")
     print("=" * 80)
