@@ -1,0 +1,37 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: train",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/finetune_llama_v2.py",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": [
+                "--model_name", "meta-llama/Llama-2-7b-chat-hf",
+                "--dataset_name", "data/squad_v2",
+                "--bf16",
+                "--max_seq_length", "4096",
+                "--per_device_train_batch_size", "2",
+                "--gradient_accumulation_steps", "8",
+                "--max_steps", "100",
+                "--merge_and_push"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Python: test_model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/test_model.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
