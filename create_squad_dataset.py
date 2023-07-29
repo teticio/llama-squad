@@ -67,7 +67,7 @@ Now give the answer in JSON format as follows:
             [
                 (
                     f"""\
-Use the following context to answer the question.
+Use the following context to answer the question. Think step by step and explain your reasoning.
 Context: {context}
 Question: {question}""",
                     f"""\

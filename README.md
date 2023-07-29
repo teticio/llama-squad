@@ -51,7 +51,7 @@ With this approach, we will be fine-tuning a model with a number of parameters a
 ## Masked Causal Language Modeling
 
 Alternatively, we can provide a multi-turn prompt with the following instructions:
-1) Use the following context to answer the question.
+1) Use the following context to answer the question. Think step by step and explain your reasoning.
 2) Extract the minimal span word for word from the context that best answers the question.
 3) Now give the answer in JSON format as follows.
 
@@ -65,7 +65,7 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 <</SYS>>
 
-Use the following context to answer the question.
+Use the following context to answer the question. Think step by step and explain your reasoning.
 Context: The origin of Tom Robinson is less clear, although many have speculated that his character was inspired by several models. When Lee was 10 years old, a white woman near Monroeville accused a black man named Walter Lett of raping her. The story and the trial were covered by her father's newspaper which reported that Lett was convicted and sentenced to death. After a series of letters appeared claiming Lett had been falsely accused, his sentence was commuted to life in prison. He died there of tuberculosis in 1937. Scholars believe that Robinson's difficulties reflect the notorious case of the Scottsboro Boys, in which nine black men were convicted of raping two white women on negligible evidence. However, in 2005, Lee stated that she had in mind something less sensational, although the Scottsboro case served "the same purpose" to display Southern prejudices. Emmett Till, a black teenager who was murdered for flirting with a white woman in Mississippi in 1955, and whose death is credited as a catalyst for the Civil Rights Movement, is also considered a model for Tom Robinson.
 Question: Who's death was a catalyst for the Civil Rights Movement? [/INST] blah ... blah </s><s>[INST] Extract the minimal span word for word from the context that best answers the question. [/INST] Emmett Till </s><s>[INST] Now give the answer in JSON format as follows:
 ```json
