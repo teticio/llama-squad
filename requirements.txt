@@ -1,0 +1,6 @@
+accelerate
+datasets
+peft
+torch
+transformers
+trl

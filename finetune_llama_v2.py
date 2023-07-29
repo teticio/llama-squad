@@ -27,7 +27,7 @@ from transformers import (
 )
 from trl import SFTTrainer
 
-from llama_mask import LlamaForMaskedCausalLM
+from llama_masked import LlamaForMaskedCausalLM
 
 # This example fine-tunes Llama v2 model on Guanace dataset
 # using QLoRA. At the end of the script we perform merging the weights

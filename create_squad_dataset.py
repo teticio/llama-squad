@@ -9,9 +9,9 @@ from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
 
 @dataclass
 class ScriptArguments:
-    base: Optional[bool] = field(
+    baseline: Optional[bool] = field(
         default=False,
-        metadata={"help": "Use base instruction format."},
+        metadata={"help": "Use baseline instruction format."},
     )
     dataset: Optional[str] = field(
         default="data/squad_v2",
@@ -23,7 +23,7 @@ REASONING_LENGTH = 100
 reasoning = " ".join(["blah"] * REASONING_LENGTH)
 
 
-def get_base_prompt_and_response(item):
+def get_baseline_prompt_and_response(item):
     context = item["context"]
     question = item["question"]
     answer = item["answers"]["text"][0] if len(item["answers"]["text"]) > 0 else "?"
@@ -98,7 +98,7 @@ script_args = parser.parse_args_into_dataclasses()[0]
 
 squad_dataset = load_dataset("squad_v2")
 instruction = (
-    get_base_prompt_and_response if script_args.base else get_prompt_and_response
+    get_baseline_prompt_and_response if script_args.baseline else get_prompt_and_response
 )
 train_dataset = squad_dataset["train"].map(instruction)
 test_dataset = squad_dataset["validation"].map(instruction)

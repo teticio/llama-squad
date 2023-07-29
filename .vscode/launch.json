@@ -31,7 +31,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
-                "--base"
+                // "--baseline"
+                // "--dataset", "data/squad_v2_baseline",
             ],
             "console": "integratedTerminal",
             "justMyCode": false
@@ -46,7 +47,8 @@
             },
             "args": [
                 // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                // "--adapter_name", "results/checkpoint-100",
+                // "--adapter_name", "results/squad_v2_baseline",
+                // "--dataset", "data/squad_v2_baseline",
                 "--seed", "42"
             ],
             "console": "integratedTerminal",
