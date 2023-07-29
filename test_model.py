@@ -15,6 +15,9 @@ class ScriptArguments:
     tokenizer_name: Optional[str] = field(
         default="meta-llama/Llama-2-7b-chat-hf",
     )
+    dataset: Optional[str] = field(
+        default="data/squad_v2",
+    )
     adapter_name: Optional[str] = field(
         default=None,
     )
@@ -53,7 +56,7 @@ if script_args.seed is not None:
     torch.cuda.manual_seed(script_args.seed)
 
 while True:
-    dataset_dict = load_from_disk("data/squad_v2")
+    dataset_dict = load_from_disk(script_args.dataset)
     text = random.choice(dataset_dict["test"])["text"]
     question = text[: text.find("[/INST] ") + len("[/INST] ")]
     answer = text[text.rfind("```json") :]

@@ -13,6 +13,9 @@ class ScriptArguments:
         default=False,
         metadata={"help": "Use base instruction format."},
     )
+    dataset: Optional[str] = field(
+        default="data/squad_v2",
+    )
 
 
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
@@ -100,4 +103,4 @@ instruction = (
 train_dataset = squad_dataset["train"].map(instruction)
 test_dataset = squad_dataset["validation"].map(instruction)
 dataset = DatasetDict({"train": train_dataset, "test": test_dataset})
-dataset.save_to_disk("data/squad_v2")
+dataset.save_to_disk(script_args.dataset)
