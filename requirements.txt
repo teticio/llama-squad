@@ -1,4 +1,5 @@
 accelerate
+bitsandbytes
 datasets
 peft
 torch
