@@ -26,10 +26,26 @@
             "justMyCode": false
         },
         {
+            "name": "Python: create_squad_dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/create_squad_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
             "name": "Python: test_model",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/test_model.py",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "--model_name", "meta-llama/Llama-2-7b-chat-hf",
+                "--adapter_name", "results/checkpoint-100",
+                "--seed", "42"
+            ],
             "console": "integratedTerminal",
             "justMyCode": false
         }
