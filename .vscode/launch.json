@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: train",
+            "name": "Python: finetune_llama_v2",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/finetune_llama_v2.py",
@@ -30,6 +30,9 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
+            "args": [
+                "--base"
+            ],
             "console": "integratedTerminal",
             "justMyCode": false
         },
@@ -42,8 +45,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                "--adapter_name", "results/checkpoint-100",
+                // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
+                // "--adapter_name", "results/checkpoint-100",
                 "--seed", "42"
             ],
             "console": "integratedTerminal",
