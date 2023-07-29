@@ -100,7 +100,7 @@ loss = masked_loss.sum() / (
 )
 ```
 
-Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided curing by the `blah blah blah` section, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
+Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided during the `blah blah blah` section, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 
 ## How to use
 
