@@ -99,23 +99,16 @@ class LlamaForMaskedCausalLM(LlamaForCausalLM):
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss(reduction="none")  # No reduction
+            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
+            # Don't calculate CE loss for "blah" tokens
+            shift_labels = torch.where(
+                shift_labels == self.blah_token_id, -100, shift_labels
+            )
             loss = loss_fct(shift_logits, shift_labels)
-
-            # Masked CE loss
-            shift_attention_mask = attention_mask[..., 1:].contiguous()
-            shift_attention_mask = shift_attention_mask.view(-1)
-            shift_attention_mask = shift_attention_mask.to(shift_logits.device)
-            masked_loss = torch.where(
-                shift_attention_mask, loss, torch.zeros_like(loss)
-            )
-            loss = masked_loss.sum() / (
-                shift_attention_mask.sum() - (shift_labels == -100).sum()
-            )
 
         if not return_dict:
             output = (logits,) + outputs[1:]

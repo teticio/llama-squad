@@ -46,8 +46,8 @@
                 "CUDA_VISIBLE_DEVICES": "1"
             },
             "args": [
-                // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                // "--adapter_name", "results/squad_v2_baseline",
+                "--model_name", "meta-llama/Llama-2-7b-chat-hf",
+                "--adapter_name", "results/checkpoint-400",
                 // "--dataset", "data/squad_v2_baseline",
                 "--seed", "42"
             ],
