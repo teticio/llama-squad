@@ -61,6 +61,7 @@ while True:
     question = text[: text.find("[/INST] ") + len("[/INST] ")]
     answer = text[text.rfind("```json") :]
     print(f"Question: {question}")
+    print()
     print(f"Correct answer: {answer}")
     print("=" * 80)
     print()
@@ -82,7 +83,7 @@ while True:
             max_new_tokens=200,
             temperature=0.8,
             top_p=0.95,
-            top_k=50,
+            top_k=50
         )[0]["generated_text"].strip()
         print(f"Response: {response[len(prompt) :]}")
         print("=" * 80)

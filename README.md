@@ -80,19 +80,22 @@ Question: Who's death was a catalyst for the Civil Rights Movement? [/INST] blah
  </s>
  ````
 
-Then we can train an adapted Llama model to not pay attention to the `blah`s nor to include this section of the tokens in the cross-entropy loss. This is achieved by simply adding the following lines to the `forward` method either side of the call to the model:
+Then we can train an adapted Llama model to not pay attention to the `blah`s nor to include this section of the tokens in the cross-entropy loss. This is achieved by simply adding the following lines to the `forward` method:
 
 ```python
-# Don't attend "blah" tokens
-attention_mask = labels != self.blah_token_id
+class LlamaForMaskedCausalLM(LlamaForCausalLM):
+    blah_token_id = 29268
+
+    def forward(self, **kwargs) -> Union[Tuple, CausalLMOutputWithPast]:
+        blah = kwargs["labels"] == self.blah_token_id
+        # # Don't attend "blah" tokens
+        kwargs["attention_mask"] = ~blah
+        # Don't calculate CE loss for "blah" tokens
+        kwargs["labels"] = torch.where(blah, -100, kwargs["labels"])
+        return super(LlamaForMaskedCausalLM, self).forward(**kwargs)
 ```
 
-```python
-# Don't calculate CE loss for "blah" tokens
-shift_labels = torch.where(
-    shift_labels == self.blah_token_id, -100, shift_labels
-)
-```
+This has a slightly different effect to using pad tokens instead of the special `blah` tokens as although they are also not included in the loss calculation, they are attended to.
 
 Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided during the `blah blah blah` section, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 

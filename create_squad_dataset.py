@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from datasets import Dataset, DatasetDict, load_dataset
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
+from datasets import DatasetDict, load_dataset
+from transformers import HfArgumentParser
 
 from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
 
