@@ -30,12 +30,13 @@ def get_baseline_prompt_and_response(item):
     return {
         "text": get_prompt(
             f"""\
-Use the following context to answer the question and give the answer in JSON format as follows:
+Extract from the following context the minimal span word for word that best answers the question and give the answer in JSON format as follows:
 ```json
 {{
   "answer": ...
 }}
 ```
+If the answer is not in the context, the answer should be "?".
 Context: {context}
 Question: {question}""",
             [],
@@ -63,6 +64,7 @@ Now give the answer in JSON format as follows:
   "answer": ...
 }
 ```
+If the answer is not in the context, the answer should be "?".
 """,
             [
                 (
@@ -88,8 +90,7 @@ Extract the minimal span word for word from the context that best answers the qu
 {{
   "answer": "{answer}"
 }}
-```
- </s>"""
+``` </s>"""
     }
 
 

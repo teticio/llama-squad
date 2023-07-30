@@ -30,12 +30,13 @@ You are a helpful, respectful and honest assistant. Always answer as helpfully a
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 <</SYS>>
 
-Use the following context to answer the question and give the answer in JSON format as follows:
+Extract from the following context the minimal span word for word that best answers the question and give the answer in JSON format as follows:
 ```json
 {
   "answer": ...
 }
 ```
+If the answer is not in the context, the answer should be "?".
 Context: In April, during the Revolution of 1848 in Paris, he left for London, where he performed at several concerts and at numerous receptions in great houses. This tour was suggested to him by his Scottish pupil Jane Stirling and her elder sister. Stirling also made all the logistical arrangements and provided much of the necessary funding.
 Question: Where did Chopin go in the spring of 1848? [/INST] ```json
 {
@@ -53,7 +54,7 @@ With this approach, we will be fine-tuning a model with a number of parameters a
 Alternatively, we can provide a multi-turn prompt with the following instructions:
 1) Use the following context to answer the question. Think step by step and explain your reasoning.
 2) Extract the minimal span word for word from the context that best answers the question.
-3) Now give the answer in JSON format as follows.
+3) Now give the answer in JSON format as follows... If the answer is not in the context, the answer should be "?".
 
 One complication with this idea is that, while we have the questions, the context and the answers, we do not have a ground-truth for the reasoning to get to that answer. For that, we could use ChatGPT, in a similar way to how the Alpaca model was trained. Or, we could simply replace the reasoning with "blah blah blah..." and adapt the training of the model accordingly.
 
@@ -72,13 +73,13 @@ Question: Who's death was a catalyst for the Civil Rights Movement? [/INST] blah
 {
   "answer": ...
 }
-``` [/INST] ```json
+```
+If the answer is not in the context, the answer should be "?". [/INST] ```json
 {
   "answer": "Emmett Till"
 }
-```
- </s>
- ````
+``` </s>
+````
 
 Then we can train an adapted Llama model to not pay attention to the `blah`s nor to include this section of the tokens in the cross-entropy loss. This is achieved by simply adding the following lines to the `forward` method:
 
