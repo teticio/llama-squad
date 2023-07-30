@@ -88,15 +88,9 @@ attention_mask = labels != self.blah_token_id
 ```
 
 ```python
-# Masked CE loss
-shift_attention_mask = attention_mask[..., 1:].contiguous()
-shift_attention_mask = shift_attention_mask.view(-1)
-shift_attention_mask = shift_attention_mask.to(shift_logits.device)
-masked_loss = torch.where(
-    shift_attention_mask, loss, torch.zeros_like(loss)
-)
-loss = masked_loss.sum() / (
-    shift_attention_mask.sum() - (shift_labels == -100).sum()
+# Don't calculate CE loss for "blah" tokens
+shift_labels = torch.where(
+    shift_labels == self.blah_token_id, -100, shift_labels
 )
 ```
 
