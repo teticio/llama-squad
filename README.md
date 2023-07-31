@@ -45,60 +45,41 @@ Question: Where did Chopin go in the spring of 1848? [/INST] ```json
 ``` </s>
 ````
 
-There is a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens, followed by an instruction terminated by `[/INST]`, and finally the ground truth answer (as a continuation of the prompt). This is the template that was used to train the chat version of Llama 2.
+Following the template that was used to train the chat version of Llama 2, there is a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens, followed by an instruction terminated by `[/INST]`, and finally the ground truth answer (as a continuation of the prompt).
 
-With this approach, we will be fine-tuning a model with a number of parameters an order of magnitude greater than the largest Open Source encoder models currently available, but we will not be taking advantage of the "reasoning" capabilities of decoders.
+The pre-trained `meta-llama/Llama-2-7b-chat-hf` model already does quite a good job, but fine-tuning the model quickly overfits to the data and causes the model to start regurgitating parts of the instruction.
 
 ## Masked Causal Language Modeling
 
-Alternatively, we can provide a multi-turn prompt with the following instructions:
-1) Use the following context to answer the question. Think step by step and explain your reasoning.
-2) Extract the minimal span word for word from the context that best answers the question.
-3) Now give the answer in JSON format as follows... If the answer is not in the context, the answer should be "?".
+We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response. This indeed improves matters, but the model jumps straight to the (usually wrong) answer with no reasoning.
 
-One complication with this idea is that, while we have the questions, the context and the answers, we do not have a ground-truth for the reasoning to get to that answer. For that, we could use ChatGPT, in a similar way to how the Alpaca model was trained. Or, we could simply replace the reasoning with "blah blah blah..." and adapt the training of the model accordingly.
-
-Consider training data of the following form, where there are several instructions in the `[INST]` and `[/INST]` token blocks, and the `blah` tokens are repeated a number of times:
-
+To encourage the model to "think step by step" we adjust the instruction to include the following:
 ````
-<s>[INST] <<SYS>>
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
-If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
-<</SYS>>
-
-Use the following context to answer the question. Think step by step and explain your reasoning.
-Context: The origin of Tom Robinson is less clear, although many have speculated that his character was inspired by several models. When Lee was 10 years old, a white woman near Monroeville accused a black man named Walter Lett of raping her. The story and the trial were covered by her father's newspaper which reported that Lett was convicted and sentenced to death. After a series of letters appeared claiming Lett had been falsely accused, his sentence was commuted to life in prison. He died there of tuberculosis in 1937. Scholars believe that Robinson's difficulties reflect the notorious case of the Scottsboro Boys, in which nine black men were convicted of raping two white women on negligible evidence. However, in 2005, Lee stated that she had in mind something less sensational, although the Scottsboro case served "the same purpose" to display Southern prejudices. Emmett Till, a black teenager who was murdered for flirting with a white woman in Mississippi in 1955, and whose death is credited as a catalyst for the Civil Rights Movement, is also considered a model for Tom Robinson.
-Question: Who's death was a catalyst for the Civil Rights Movement? [/INST] blah ... blah </s><s>[INST] Extract the minimal span word for word from the context that best answers the question. [/INST] Emmett Till </s><s>[INST] Now give the answer in JSON format as follows:
-```json
-{
-  "answer": ...
-}
-```
-If the answer is not in the context, the answer should be "?". [/INST] ```json
-{
-  "answer": "Emmett Till"
-}
-``` </s>
+Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
 ````
 
-Then we can train an adapted Llama model to not pay attention to the `blah`s nor to include this section of the tokens in the cross-entropy loss. This is achieved by simply adding the following lines to the `forward` method:
+It also helps to include the reasoning in the training data. Unfortunately, we do not have a ground-truth for that, but we could use ChatGPT to generate it in a similar way to how the Alpaca model was trained. Or, we could simply replace the reasoning with "blah blah blah..." and ensure that the model does not attend those tokens. Hopefully, it still learns to space out the answer due to the relative positional embeddings.
+
+We can train an adapted Llama model to not pay attention to the blahs nor to include this section of the tokens in the cross-entropy loss. This is achieved by simply adding the following lines to the `forward` method:
 
 ```python
 class LlamaForMaskedCausalLM(LlamaForCausalLM):
     blah_token_id = 29268
+    answer_start_token_id = 7521
 
     def forward(self, **kwargs) -> Union[Tuple, CausalLMOutputWithPast]:
-        blah = kwargs["labels"] == self.blah_token_id
         # # Don't attend "blah" tokens
-        kwargs["attention_mask"] = ~blah
-        # Don't calculate CE loss for "blah" tokens
-        kwargs["labels"] = torch.where(blah, -100, kwargs["labels"])
+        kwargs["attention_mask"] = kwargs["labels"] != self.blah_token_id
+        # Only calculate CE loss for the answer section of the labels
+        for batch in range(kwargs["labels"].size(0)):
+            answer_start = (
+                kwargs["labels"][batch] == self.answer_start_token_id
+            ).nonzero(as_tuple=True)[0][-1]
+            kwargs["labels"][batch][:answer_start] = -100
         return super(LlamaForMaskedCausalLM, self).forward(**kwargs)
 ```
 
-This has a slightly different effect to using pad tokens instead of the special `blah` tokens as although they are also not included in the loss calculation, they are attended to.
-
-Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided during the `blah blah blah` section, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
+Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 
 ## How to use
 

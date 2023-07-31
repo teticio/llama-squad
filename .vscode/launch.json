@@ -19,7 +19,7 @@
                 "--max_seq_length", "4096",
                 "--per_device_train_batch_size", "2",
                 "--gradient_accumulation_steps", "8",
-                "--max_steps", "100",
+                "--max_steps", "1000",
                 "--merge_and_push"
             ],
             "console": "integratedTerminal",
@@ -31,7 +31,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
-                // "--baseline"
+                // "--prompt", "baseline",
                 // "--dataset", "data/squad_v2_baseline",
             ],
             "console": "integratedTerminal",

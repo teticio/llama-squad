@@ -9,18 +9,24 @@ from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
 
 @dataclass
 class ScriptArguments:
-    baseline: Optional[bool] = field(
-        default=False,
-        metadata={"help": "Use baseline instruction format."},
+    prompt: Optional[str] = field(
+        default="single_turn",
+        metadata={"help": "baseline, single_turn, multi_turn"},
+    )
+    reasoning_length: Optional[int] = field(
+        default=200,
+        metadata={"help": "number of blah tokens to insert"},
     )
     dataset: Optional[str] = field(
         default="data/squad_v2",
     )
 
 
+parser = HfArgumentParser(ScriptArguments)
+script_args = parser.parse_args_into_dataclasses()[0]
+
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
-REASONING_LENGTH = 100
-reasoning = " ".join(["blah"] * REASONING_LENGTH)
+reasoning = " ".join(["blah"] * script_args.reasoning_length)
 
 
 def get_baseline_prompt_and_response(item):
@@ -51,7 +57,35 @@ Question: {question}""",
     }
 
 
-def get_prompt_and_response(item):
+def get_single_turn_prompt_and_response(item):
+    context = item["context"]
+    question = item["question"]
+    answer = item["answers"]["text"][0] if len(item["answers"]["text"]) > 0 else "?"
+    return {
+        "text": get_prompt(
+            f"""\
+Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+```json
+{{
+  "answer": ...
+}}
+```
+If the answer is not in the context, the answer should be "?".
+Context: {context}
+Question: {question}""",
+            [],
+            SYSTEM_PROMPT,
+        )
+        + f""" \
+{reasoning} ```json
+{{
+  "answer": "{answer}"
+}}
+``` </s>"""
+    }
+
+
+def get_multi_turn_prompt_and_response(item):
     context = item["context"]
     question = item["question"]
     answer = item["answers"]["text"][0] if len(item["answers"]["text"]) > 0 else "?"
@@ -94,14 +128,15 @@ Extract the minimal span word for word from the context that best answers the qu
     }
 
 
-parser = HfArgumentParser(ScriptArguments)
-script_args = parser.parse_args_into_dataclasses()[0]
+instruction = {
+    "baseline": get_baseline_prompt_and_response,
+    "single_turn": get_single_turn_prompt_and_response,
+    "multi_turn": get_multi_turn_prompt_and_response,
+}[script_args.prompt]
 
 squad_dataset = load_dataset("squad_v2")
-instruction = (
-    get_baseline_prompt_and_response if script_args.baseline else get_prompt_and_response
-)
 train_dataset = squad_dataset["train"].map(instruction)
+print(train_dataset[0]["text"])
 test_dataset = squad_dataset["validation"].map(instruction)
 dataset = DatasetDict({"train": train_dataset, "test": test_dataset})
 dataset.save_to_disk(script_args.dataset)
