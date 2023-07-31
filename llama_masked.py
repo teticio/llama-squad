@@ -1,6 +1,5 @@
 from typing import Tuple, Union
 
-# import torch
 from transformers import LlamaForCausalLM
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
