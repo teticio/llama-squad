@@ -42,14 +42,10 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/test_model.py",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
-            },
             "args": [
                 // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                // "--adapter_name", "results/checkpoint-400",
+                // "--adapter_name", "results/final_checkpoints",
                 // "--dataset", "data/squad_v2_baseline",
-                "--seed", "42"
             ],
             "console": "integratedTerminal",
             "justMyCode": false

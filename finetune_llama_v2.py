@@ -19,12 +19,9 @@ from typing import Optional
 import torch
 from datasets import load_from_disk
 from peft import LoraConfig
-from transformers import (
-    AutoTokenizer,  # AutoModelForCausalLM,
-    BitsAndBytesConfig,
-    HfArgumentParser,
-    TrainingArguments,
-)
+from transformers import AutoTokenizer  # AutoModelForCausalLM,
+from transformers import (BitsAndBytesConfig, HfArgumentParser,
+                          TrainingArguments)
 from trl import SFTTrainer
 
 from llama_masked import LlamaForMaskedCausalLM

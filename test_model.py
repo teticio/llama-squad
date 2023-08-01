@@ -1,17 +1,23 @@
-import random
+import csv
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-import torch
+import json5
 import transformers
 from datasets import load_from_disk
 from peft import PeftModel
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
+from tqdm import tqdm
+from transformers import AutoModelForCausalLM, HfArgumentParser
+
+logger = logging.getLogger()
+logging.basicConfig(level=logging.ERROR)
+transformers.logging.set_verbosity_error()
 
 
 @dataclass
 class ScriptArguments:
-    model_name: Optional[str] = field(default="results/final_merged_checkpoint")
+    model_name: Optional[str] = field(default="meta-llama/Llama-2-7b-chat-hf")
     tokenizer_name: Optional[str] = field(
         default="meta-llama/Llama-2-7b-chat-hf",
     )
@@ -21,28 +27,24 @@ class ScriptArguments:
     adapter_name: Optional[str] = field(
         default=None,
     )
-    seed: Optional[int] = field(default=None)
+    output_csv_file: Optional[str] = field(default="results/results.csv")
 
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.float16,
-    bnb_4bit_use_double_quant=False,
-)
 model = AutoModelForCausalLM.from_pretrained(
     script_args.model_name,
-    quantization_config=bnb_config,
     device_map="auto",
     use_auth_token=True,
     trust_remote_code=True,
 )
+
 if script_args.adapter_name is not None:
-    model = PeftModel.from_pretrained(model, script_args.adapter_name)
-    model.eval()
+    model = PeftModel.from_pretrained(
+        model, script_args.adapter_name, device_map="auto"
+    )
+    model = model.merge_and_unload()
 
 pipeline = transformers.pipeline(
     "text-generation",
@@ -50,44 +52,64 @@ pipeline = transformers.pipeline(
     tokenizer=script_args.tokenizer_name,
 )
 
-if script_args.seed is not None:
-    random.seed(script_args.seed)
-    torch.manual_seed(script_args.seed)
-    torch.cuda.manual_seed(script_args.seed)
 
-while True:
-    dataset_dict = load_from_disk(script_args.dataset)
-    text = random.choice(dataset_dict["test"])["text"]
-    question = text[: text.find("[/INST] ") + len("[/INST] ")]
-    answer = text[text.rfind("```json") :]
-    print(f"Question: {question}")
-    print()
-    print(f"Correct answer: {answer}")
-    print("=" * 80)
-    print()
+def extract_answer(text):
+    text = text[text.find("{") :]
+    text = text[: text.find("}") + 1]
+    try:
+        # JSON5 is a little less picky than JSON
+        answer = json5.loads(text)["answer"]
+    except:
+        answer = None
+    return answer
 
+
+def get_answer(prompt, pipeline):
     response = ""
     while True:
-        prompt = response
-        instruction = text.find("[/INST] ")
+        instruction = prompt.find("[/INST] ")
         if instruction == -1:
             break
         instruction += len("[/INST] ")
-        prompt += text[:instruction] + "</s>"
-        text = text[instruction:]
-        text = text[text.find("<s>") :]
+        current_prompt = response
+        current_prompt += prompt[:instruction] + "</s>"
+        prompt = prompt[instruction:]
+        prompt = prompt[prompt.find("<s>") :]
         response = pipeline(
-            prompt,
-            do_sample=True,
+            current_prompt,
+            do_sample=False,
             num_return_sequences=1,
-            max_new_tokens=200,
-            temperature=0.8,
-            top_p=0.95,
-            top_k=50
+            max_new_tokens=512,
         )[0]["generated_text"].strip()
-        print(f"Response: {response[len(prompt) :]}")
-        print("=" * 80)
-        print()
 
-    input("Press enter to continue...")
-    print()
+    response = response[len(current_prompt) :]
+    return extract_answer(response), response
+
+
+with open(script_args.output_csv_file, "w") as file:
+    writer = csv.writer(file)
+    writer.writerow(
+        [
+            "Context",
+            "Question",
+            "Correct answer",
+            "Model answer",
+            "Full response",
+        ]
+    )
+
+    dataset_dict = load_from_disk(script_args.dataset)
+    for text in tqdm(dataset_dict["test"]["text"]):
+        prompt = text[: text.find("[/INST] ") + len("[/INST] ")]
+        answer = extract_answer(text[text.rfind("```json") :])
+        context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
+        logger.info(f"Context: {context}")
+        question = prompt[prompt.find("Question: ") + 10 : -9]
+        logger.info(f"Question: {question}")
+        logger.info(f"Correct answer: {answer}")
+        model_answer, full_response = get_answer(prompt, pipeline)
+        logger.info(f"Model answer: {model_answer}")
+        logger.info(f"Full response: {full_response}")
+
+        writer.writerow([context, question, answer, model_answer, full_response])
+        file.flush()
