@@ -2,6 +2,12 @@
 
 ![Llama masked](llama_masked.png)
 
+## TL;DR
+
+This repo uses the TRL (Transformer Reinforcement Library) to fine-tune Meta's Llama 2 model on the SQuAD v2 task. This is a particularly challenging task for decoder models like Llama, because it requires abstention when the answer is not in the context and exact extraction from the context when it is present. If we can fine-tune an encoder model so that it is more "honest" about what it cannot answer and to always give answers in a predictable format, then it should be possible to specialize these generalized foundation models on a wide range of tasks.
+
+While a lot of progress has been made in the field of fine-tuning, it may be the case that we have a dataset with the answers we want, but without knowing how to get there (i.e., the reasoning necessary). Is it possible to get results comparable to encoder models for exacting tasks while taking advantage of the "reasoning" capabilities of decoder models?
+
 ## Motivation
 
 Before ChatGPT, we typically used encoder (discriminative) models to solve specific tasks such as classification and question answering. In fact, many of the SOTA results for these kind of tasks appear to have got stuck in time. Back then, decoder (generative) models like GPT seemed like they could be of little more use than to generate an alternative ending to a Harry Potter book. However, a first hint of their surprising utility was uncovered in the Open AI paper, ["Language Models are Unsupervised Multitask Learners"](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) in which they demonstrated the ability of GPT-2 (1.5B parameters!) to perform a variety of tasks such as translation, question answering, and summarization, all without the need for task-specific training.
