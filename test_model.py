@@ -71,7 +71,7 @@ def get_answer(prompt, pipeline):
         if instruction == -1:
             break
         instruction += len("[/INST] ")
-        current_prompt = response
+        current_prompt = response.strip()
         current_prompt += prompt[:instruction] + "</s>"
         prompt = prompt[instruction:]
         prompt = prompt[prompt.find("<s>") :]
@@ -80,9 +80,9 @@ def get_answer(prompt, pipeline):
             do_sample=False,
             num_return_sequences=1,
             max_new_tokens=512,
-        )[0]["generated_text"].strip()
+        )[0]["generated_text"]
 
-    response = response[len(current_prompt) :]
+    response = response[len(current_prompt) :].strip()
     return extract_answer(response), response
 
 
