@@ -114,3 +114,7 @@ The training script `finetune_llama_v2.py` is heavily based on [one](https://gis
 ```bash
 python test_model.py
 ```
+
+### TODO
+
+* Try EWC (Elastic Weight Consolidation) to prevent catastrophic forgetting over the question, while further training the answer.
