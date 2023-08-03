@@ -115,6 +115,15 @@ The training script `finetune_llama_v2.py` is heavily based on [one](https://gis
 python test_model.py
 ```
 
+### Results
+
+On the test set, the models achieve the following results:
+
+| Model                                         | % Valid JSON | % Exact Match | % Correct Abstensions |
+| --------------------------------------------- | ------------ | ------------- | --------------------- |
+| Llama 2 7b Chat (base model)                  | 66.42%       | 16.64%        | 1.86%                 |
+| Fine tuned (single turn 200 reasoning tokens) | 95.60%       | 50.64%        | 23.47%                |
+
 ### TODO
 
 * Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
