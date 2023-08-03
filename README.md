@@ -122,7 +122,7 @@ On the test set, the models achieve the following results:
 | Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct Abstentions |
 | ----------------------------- | ------------ | ------------- | ------------------- | --------------------- |
 | Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 24.62%              | 3.72%                 |
-| [Fine tuned (single turn 200 reasoning tokens)](https://wandb.ai/teticio/huggingface/runs/a7vwsb6i?workspace=user-teticio) | 95.60%       | 50.64%        | 49.09%              | 46.86%                |
+| [Fine tuned (single turn 200 reasoning tokens)](https://wandb.ai/teticio/huggingface/runs/a7vwsb6i?workspace=user-teticio) | 95.60%       | 25.44%        | 26.57%              | 7.00%                 |
 
 ### TODO
 
