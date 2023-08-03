@@ -119,10 +119,10 @@ python test_model.py
 
 On the test set, the models achieve the following results:
 
-| Model                                         | % Valid JSON | % Exact Match | % Correct Abstentions |
-| --------------------------------------------- | ------------ | ------------- | --------------------- |
-| Llama 2 7b Chat (base model)                  | 66.42%       | 16.64%        | 1.86%                 |
-| Fine tuned (single turn 200 reasoning tokens) | 95.60%       | 50.64%        | 23.47%                |
+| Model                         | % Valid JSON | % Exact Match | % Correct Abstentions |
+| ----------------------------- | ------------ | ------------- | --------------------- |
+| Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 1.86%                 |
+| [Fine tuned (single turn 200 reasoning tokens)](https://wandb.ai/teticio/huggingface/runs/a7vwsb6i?workspace=user-teticio) | 95.60%       | 50.64%        | 23.47%                |
 
 ### TODO
 
