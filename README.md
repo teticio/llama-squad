@@ -117,14 +117,19 @@ python test_model.py
 
 ### Results
 
-On the test set, the models achieve the following results:
+The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following results:
 
 | Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct Abstentions |
 | ----------------------------- | ------------ | ------------- | ------------------- | --------------------- |
 | Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 24.62%              | 3.72%                 |
-| [Fine tuned (single turn 200 reasoning tokens)](https://wandb.ai/teticio/huggingface/runs/a7vwsb6i?workspace=user-teticio) | 95.60%       | 25.44%        | 26.57%              | 7.00%                 |
+| [Fine-tuned (single turn 200 reasoning tokens)](https://wandb.ai/teticio/huggingface/runs/a7vwsb6i?workspace=user-teticio) | 95.60%       | 25.44%        | 26.57%              | 7.00%                 |
+
+The fine-tuned model has clearly learned to respect JSON format, but it still suffers from the same difficulties as the base model to exactly answer the questions. The uplift in exact match accuracy is almost entirely due to the improved formatting ability. To some extent, this is to be expected, as it appears that the model is limited by its inherent reasoning capability. Nevertheless, it has almost doubled the number of correct abstentions.
+
+It's possible that training over more epochs could improve the question answering ability, but this currently leads to catastrophic forgetting and destroys the model's ability to produce a coherent explanation.
 
 ### TODO
 
+* Ablation.
 * Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
 * Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).
