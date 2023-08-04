@@ -12,7 +12,6 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
 
 logger = logging.getLogger()
-logging.basicConfig(level=logging.ERROR)
 transformers.logging.set_verbosity_error()
 
 
@@ -30,10 +29,13 @@ class ScriptArguments:
     )
     quantize: Optional[bool] = field(default=False)
     output_csv_file: Optional[str] = field(default="results/results.csv")
+    debug: Optional[bool] = field(default=False)
 
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
+
+logging.basicConfig(level=logging.DEBUG if script_args.debug else logging.INFO)
 
 if script_args.quantize:
     bnb_config = BitsAndBytesConfig(
@@ -87,6 +89,7 @@ def get_answer(prompt, pipeline):
         instruction += len("[/INST] ")
         current_prompt = response.strip()
         current_prompt += prompt[:instruction] + "</s>"
+        logger.info("Instruction: %s", prompt[:instruction])
         prompt = prompt[instruction:]
         prompt = prompt[prompt.find("<s>") :]
         response = pipeline(
@@ -95,6 +98,7 @@ def get_answer(prompt, pipeline):
             num_return_sequences=1,
             max_new_tokens=512,
         )[0]["generated_text"]
+        logger.debug("Response: %s", response[len(current_prompt) :].strip())
 
     response = response[len(current_prompt) :].strip()
     return extract_answer(response), response
@@ -114,16 +118,16 @@ with open(script_args.output_csv_file, "w") as file:
 
     dataset_dict = load_from_disk(script_args.dataset)
     for text in tqdm(dataset_dict["test"]["text"]):
-        prompt = text[: text.find("[/INST] ") + len("[/INST] ")]
-        answer = extract_answer(text[text.rfind("```json") :])
+        answer_start = text.rfind("```json")
+        prompt = text[:answer_start]
+        answer = extract_answer(text[answer_start:])
         context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
-        logger.info(f"Context: {context}")
+        logger.debug("Context: %s", context)
         question = prompt[prompt.find("Question: ") + 10 : -9]
-        logger.info(f"Question: {question}")
-        logger.info(f"Correct answer: {answer}")
+        logger.debug("Question: %s", question)
+        logger.debug("Correct answer: %s", answer)
         model_answer, full_response = get_answer(prompt, pipeline)
-        logger.info(f"Model answer: {model_answer}")
-        logger.info(f"Full response: {full_response}")
+        logger.debug("Model answer: %s", model_answer)
 
         writer.writerow([context, question, answer, model_answer, full_response])
         file.flush()

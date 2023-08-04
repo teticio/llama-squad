@@ -55,27 +55,30 @@ Question: When did Beyonce start becoming popular? [/INST] ```json
 
 We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response.
 
-We can train an adapted Llama model to do this by subclassing the `LlamaForCausalLM` model and overriding the `forward` method as follows:
+We can train the model in this way by creating a custom `DataCollator` as follows:
 
 ```python
-class LlamaSquad(LlamaForCausalLM):
-    answer_start_token_id = 7521
+class SquadDataCollator(DataCollatorForLanguageModeling):
+    answer_start_token_id = 7521  # "_```"
 
-    def forward(self, **kwargs):
-        # Only calculate CE loss for the answer section of the labels
-        for batch in range(kwargs["labels"].size(0)):
+    def __call__(self, examples):
+        batch = super().__call__(examples)
+
+        # Only apply cross entropy loss to the answer part of the labels
+        for _ in range(batch["labels"].size(0)):
             answer_start = (
-                kwargs["labels"][batch] == self.answer_start_token_id
+                batch["labels"][_] == self.answer_start_token_id
             ).nonzero(as_tuple=True)[0][-1]
-            kwargs["labels"][batch][:answer_start] = -100
-        return super(LlamaForMaskedCausalLM, self).forward(**kwargs)
+            batch["labels"][_][:answer_start] = -100
+
+        return batch
 ```
 
 Notice that we include
 ````
 Think step by step and explain your reasoning.
 ````
-in the prompt. It would probably help if we were able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens by modifying the `attention_mask`. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
+in the prompt. It would probably help if we were also able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens by modifying the `attention_mask`. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 
 ## How to use
 
@@ -124,9 +127,9 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 | Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct Abstentions |
 | ----------------------------- | ------------ | ------------- | ------------------- | --------------------- |
 | Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 24.62%              | 3.72%                 |
-| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 96.60%       | 41.30%        | 42.71%              | 37.76%                |
+| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 97.17%       | 42.15%        | 43.36%              | 39.41%                |
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing) reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
 > Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
@@ -138,5 +141,6 @@ Nevertheless, the results are encouraging and indicate that much better results 
 
 * Examples.
 * Multi-turn.
+* Compare with Llama 2 70b.
 * Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
 * Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).

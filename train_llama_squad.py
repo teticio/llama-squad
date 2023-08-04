@@ -19,12 +19,15 @@ from typing import Optional
 import torch
 from datasets import load_from_disk
 from peft import LoraConfig
-from transformers import AutoTokenizer  # AutoModelForCausalLM,
-from transformers import (BitsAndBytesConfig, HfArgumentParser,
-                          TrainingArguments)
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import (
+    BitsAndBytesConfig,
+    HfArgumentParser,
+    TrainingArguments,
+)
 from trl import SFTTrainer
 
-from llama_squad import LlamaSquad
+from llama_squad import SquadDataCollator
 
 # This example fine-tunes Llama v2 model on Guanace dataset
 # using QLoRA. At the end of the script we perform merging the weights
@@ -175,7 +178,7 @@ def create_and_prepare_model(args):
     # switch to `device_map = "auto"` for multi-GPU
     device_map = "auto"  # {"": 0}
 
-    model = LlamaSquad.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         args.model_name,
         quantization_config=bnb_config,
         device_map=device_map,
@@ -226,6 +229,8 @@ dataset = load_from_disk(script_args.dataset_name)["train"]
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
+data_collator = SquadDataCollator(tokenizer=tokenizer, mlm=False)
+
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
@@ -235,6 +240,7 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
     args=training_arguments,
     packing=script_args.packing,
+    data_collator=data_collator,
 )
 
 trainer.train()

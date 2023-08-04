@@ -1,17 +1,17 @@
-from transformers import LlamaForCausalLM
+from transformers import DataCollatorForLanguageModeling
 
 
-class LlamaSquad(LlamaForCausalLM):
-    blah_token_id = 29268
-    answer_start_token_id = 7521
+class SquadDataCollator(DataCollatorForLanguageModeling):
+    answer_start_token_id = 7521  # "_```"
 
-    def forward(self, **kwargs):
-        # # Don't attend "blah" tokens
-        kwargs["attention_mask"] = kwargs["labels"] != self.blah_token_id
-        # Only calculate CE loss for the answer section of the labels
-        for batch in range(kwargs["labels"].size(0)):
+    def __call__(self, examples):
+        batch = super().__call__(examples)
+
+        # Only apply cross entropy loss to the answer part of the labels
+        for _ in range(batch["labels"].size(0)):
             answer_start = (
-                kwargs["labels"][batch] == self.answer_start_token_id
+                batch["labels"][_] == self.answer_start_token_id
             ).nonzero(as_tuple=True)[0][-1]
-            kwargs["labels"][batch][:answer_start] = -100
-        return super(LlamaSquad, self).forward(**kwargs)
+            batch["labels"][_][:answer_start] = -100
+
+        return batch

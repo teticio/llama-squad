@@ -19,7 +19,7 @@
                 "--max_seq_length", "4096",
                 "--per_device_train_batch_size", "2",
                 "--gradient_accumulation_steps", "8",
-                "--max_steps", "1000",
+                "--max_steps", "100",
                 "--merge_and_push"
             ],
             "console": "integratedTerminal",
@@ -44,8 +44,9 @@
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
                 // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                // "--adapter_name", "results/final_checkpoints",
+                 "--adapter_name", "results/checkpoint-100",
                 // "--dataset", "data/squad_v2_multi_turn",
+                "--debug"
             ],
             "console": "integratedTerminal",
             "justMyCode": false

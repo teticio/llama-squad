@@ -11,7 +11,7 @@ from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
 class ScriptArguments:
     prompt: Optional[str] = field(
         default="single_turn",
-        metadata={"help": "baseline, single_turn, multi_turn"},
+        metadata={"help": "single_turn, multi_turn"},
     )
     dataset: Optional[str] = field(
         default="data/squad_v2",
@@ -79,8 +79,7 @@ Question: {question}""",
                     f"""\
 Extract the minimal span word for word from the context that best answers the question.
         """,
-                    f"""\
-{answer}""",
+                    "",
                 ),
             ],
             SYSTEM_PROMPT,
