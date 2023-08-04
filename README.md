@@ -28,7 +28,7 @@ While ChatGPT has been fine-tuned with RLHF (Reinforcement Learning with Human F
 
 The idea here is to use the excellent [TRL](https://github.com/lvwerra/trl) library from Hugging Face's Leandro von Werra to SFT a model on the SQuAD v2 task. The current SQuAD v2 [SOTA](https://paperswithcode.com/sota/question-answering-on-squad20) is an Exact Match for 90.9% of the test set. The dataset consists of contexts, questions and answers - which are verbatim extracts from the contexts. In some cases, there *is* no answer to the question in the context, and so the answer is an empty string. Foundation models like ChatGPT may excel in "reasoning", but it can be challenging to ensure that the answers are taken word-for-word from the context. In the case that there is no answer, there is an additional risk that they will provide an answer from memory or a "hallucination". There is, of course, also a risk that the SQuAD v2 test dataset was used as part of the training set of the foundation model.
 
-We create a dataset of the form:
+We create a dataset according to the template that was used to train the chat version of Llama 2, with a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens followed by an instruction terminated by `[/INST]` and finally the ground truth answer (as a continuation of the prompt).
 
 ````
 <s>[INST] <<SYS>>                                                                                                                                     
@@ -50,8 +50,6 @@ Question: When did Beyonce start becoming popular? [/INST] ```json
 }
 ``` </s>
 ````
-
-Following the template that was used to train the chat version of Llama 2, there is a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens, followed by an instruction terminated by `[/INST]`, and finally the ground truth answer (as a continuation of the prompt).
 
 ## Masked Causal Language Modeling
 
