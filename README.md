@@ -28,41 +28,40 @@ While ChatGPT has been fine-tuned with RLHF (Reinforcement Learning with Human F
 
 The idea here is to use the excellent [TRL](https://github.com/lvwerra/trl) library from Hugging Face's Leandro von Werra to SFT a model on the SQuAD v2 task. The current SQuAD v2 [SOTA](https://paperswithcode.com/sota/question-answering-on-squad20) is an Exact Match for 90.9% of the test set. The dataset consists of contexts, questions and answers - which are verbatim extracts from the contexts. In some cases, there *is* no answer to the question in the context, and so the answer is an empty string. Foundation models like ChatGPT may excel in "reasoning", but it can be challenging to ensure that the answers are taken word-for-word from the context. In the case that there is no answer, there is an additional risk that they will provide an answer from memory or a "hallucination". There is, of course, also a risk that the SQuAD v2 test dataset was used as part of the training set of the foundation model.
 
-A baseline approach would be to generate training data of the form:
+We create a dataset of the form:
 
 ````
-<s>[INST] <<SYS>>
+<s>[INST] <<SYS>>                                                                                                                                     
 You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
 <</SYS>>
 
-Extract from the following context the minimal span word for word that best answers the question and give the answer in JSON format as follows:
+Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
 ```json
 {
   "answer": ...
 }
 ```
 If the answer is not in the context, the answer should be "?".
-Context: In April, during the Revolution of 1848 in Paris, he left for London, where he performed at several concerts and at numerous receptions in great houses. This tour was suggested to him by his Scottish pupil Jane Stirling and her elder sister. Stirling also made all the logistical arrangements and provided much of the necessary funding.
-Question: Where did Chopin go in the spring of 1848? [/INST] ```json
+Context: Beyoncé Giselle Knowles-Carter (/biːˈjɒnseɪ/ bee-YON-say) (born September 4, 1981) is an American singer, songwriter, record producer and actress. Born and raised in Houston, Texas, she performed in various singing and dancing competitions as a child, and rose to fame in the late 1990s as lead singer of R&B girl-group Destiny's Child. Managed by her father, Mathew Knowles, the group became one of the world's best-selling girl groups of all time. Their hiatus saw the release of Beyoncé's debut album, Dangerously in Love (2003), which established her as a solo artist worldwide, earned five Grammy Awards and featured the Billboard Hot 100 number-one singles "Crazy in Love" and "Baby Boy".
+Question: When did Beyonce start becoming popular? [/INST] ```json
 {
-  "answer": "London"
+  "answer": "in the late 1990s"
 }
 ``` </s>
 ````
 
 Following the template that was used to train the chat version of Llama 2, there is a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens, followed by an instruction terminated by `[/INST]`, and finally the ground truth answer (as a continuation of the prompt).
 
-The pre-trained `meta-llama/Llama-2-7b-chat-hf` model already does quite a good job, but fine-tuning the model quickly overfits to the data and causes the model to start regurgitating parts of the instruction.
-
 ## Masked Causal Language Modeling
 
 We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response.
 
-To encourage the model to "think step by step" we adjust the instruction to include the following:
+Notice that we include
 ````
-Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+Think step by step and explain your reasoning.
 ````
+in the prompt. This is to encourage the model to space out the answer, rather than generating it all at once and has been shown to improve results with foundation models.
 
 It would probably help if we were able to include the reasoning in the training data. As we do not have a ground-truth for it one approach would be use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment I tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 

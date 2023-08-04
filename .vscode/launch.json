@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: finetune_llama_v2",
+            "name": "Python: train_llama_squad",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/finetune_llama_v2.py",
+            "program": "${workspaceFolder}/train_llama_squad.py",
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0"
             },
@@ -31,21 +31,21 @@
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
-                // "--prompt", "baseline",
-                // "--dataset", "data/squad_v2_baseline",
+                // "--prompt", "multi_turn",
+                // "--dataset", "data/squad_v2_multi_turn",
             ],
             "console": "integratedTerminal",
             "justMyCode": false
         },
         {
-            "name": "Python: test_model",
+            "name": "Python: test_llama_squad",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/test_model.py",
+            "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
                 // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
                 // "--adapter_name", "results/final_checkpoints",
-                // "--dataset", "data/squad_v2_baseline",
+                // "--dataset", "data/squad_v2_multi_turn",
             ],
             "console": "integratedTerminal",
             "justMyCode": false
