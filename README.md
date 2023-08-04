@@ -55,12 +55,6 @@ Question: When did Beyonce start becoming popular? [/INST] ```json
 
 We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response.
 
-Notice that we include
-````
-Think step by step and explain your reasoning.
-````
-in the prompt. It would probably help if we were able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
-
 We can train an adapted Llama model to do this by subclassing the `LlamaForCausalLM` model and overriding the `forward` method as follows:
 
 ```python
@@ -76,6 +70,12 @@ class LlamaSquad(LlamaForCausalLM):
             kwargs["labels"][batch][:answer_start] = -100
         return super(LlamaForMaskedCausalLM, self).forward(**kwargs)
 ```
+
+Notice that we include
+````
+Think step by step and explain your reasoning.
+````
+in the prompt. It would probably help if we were able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens by modifying the `attention_mask`. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 
 ## How to use
 
