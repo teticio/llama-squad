@@ -1,7 +1,7 @@
 from transformers import LlamaForCausalLM
 
 
-class LlamaForMaskedCausalLM(LlamaForCausalLM):
+class LlamaSquad(LlamaForCausalLM):
     blah_token_id = 29268
     answer_start_token_id = 7521
 

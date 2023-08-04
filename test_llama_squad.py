@@ -4,11 +4,12 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import json5
+import torch
 import transformers
 from datasets import load_from_disk
 from peft import PeftModel
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, HfArgumentParser
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.ERROR)
@@ -27,24 +28,37 @@ class ScriptArguments:
     adapter_name: Optional[str] = field(
         default=None,
     )
+    quantize: Optional[bool] = field(default=False)
     output_csv_file: Optional[str] = field(default="results/results.csv")
 
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
+if script_args.quantize:
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nfq",
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=False,
+    )
+else:
+    bnb_config = None
+
 model = AutoModelForCausalLM.from_pretrained(
     script_args.model_name,
     device_map="auto",
     use_auth_token=True,
     trust_remote_code=True,
+    quantization_config=bnb_config,
 )
 
 if script_args.adapter_name is not None:
     model = PeftModel.from_pretrained(
         model, script_args.adapter_name, device_map="auto"
     )
-    model = model.merge_and_unload()
+    if not script_args.quantize:
+        model = model.merge_and_unload()
 
 pipeline = transformers.pipeline(
     "text-generation",

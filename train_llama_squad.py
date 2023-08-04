@@ -24,7 +24,7 @@ from transformers import (BitsAndBytesConfig, HfArgumentParser,
                           TrainingArguments)
 from trl import SFTTrainer
 
-from llama_masked import LlamaForMaskedCausalLM
+from llama_squad import LlamaSquad
 
 # This example fine-tunes Llama v2 model on Guanace dataset
 # using QLoRA. At the end of the script we perform merging the weights
@@ -175,7 +175,7 @@ def create_and_prepare_model(args):
     # switch to `device_map = "auto"` for multi-GPU
     device_map = "auto"  # {"": 0}
 
-    model = LlamaForMaskedCausalLM.from_pretrained(
+    model = LlamaSquad.from_pretrained(
         args.model_name,
         quantization_config=bnb_config,
         device_map=device_map,

@@ -13,10 +13,6 @@ class ScriptArguments:
         default="single_turn",
         metadata={"help": "baseline, single_turn, multi_turn"},
     )
-    reasoning_length: Optional[int] = field(
-        default=200,
-        metadata={"help": "number of blah tokens to insert"},
-    )
     dataset: Optional[str] = field(
         default="data/squad_v2",
     )
@@ -26,7 +22,6 @@ parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
-reasoning = " ".join(["blah"] * script_args.reasoning_length)
 
 
 def get_baseline_prompt_and_response(item):
@@ -77,7 +72,7 @@ Question: {question}""",
             SYSTEM_PROMPT,
         )
         + f""" \
-{reasoning} ```json
+```json
 {{
   "answer": "{answer}"
 }}
@@ -106,8 +101,7 @@ If the answer is not in the context, the answer should be "?".
 Use the following context to answer the question. Think step by step and explain your reasoning.
 Context: {context}
 Question: {question}""",
-                    f"""\
-{reasoning}""",
+                    "",
                 ),
                 (
                     f"""\
