@@ -130,7 +130,7 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 
 The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
-> Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and ""violent economic and political shocks"" reduced inequality. Moreover, Piketty argues that the ""magical"" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
+> Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
 > What isn't Thomas Piketty's job?
 
