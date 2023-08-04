@@ -6,7 +6,7 @@
 
 This repo uses the TRL (Transformer Reinforcement Library) to fine-tune Meta's Llama 2 model on the SQuAD v2 task. This is a particularly challenging task for decoder models like Llama, because it requires abstention when the answer is not in the context and exact extraction from the context when it is present. If we can fine-tune an encoder model so that it is more "honest" about what it cannot answer and to always give answers in a predictable format, then it should be possible to specialize these generalized foundation models on a wide range of tasks.
 
-While a lot of progress has been made in the field of fine-tuning for mor general tasks, we find that it is necessary to adapt the procedure in order to get good results.
+While a lot of progress has been made in the field of fine-tuning for more general tasks, we find that it is necessary to adapt the procedure in order to get good results.
 
 ## Motivation
 
