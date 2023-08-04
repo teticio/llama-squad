@@ -14,4 +14,4 @@ class LlamaSquad(LlamaForCausalLM):
                 kwargs["labels"][batch] == self.answer_start_token_id
             ).nonzero(as_tuple=True)[0][-1]
             kwargs["labels"][batch][:answer_start] = -100
-        return super(LlamaForMaskedCausalLM, self).forward(**kwargs)
+        return super(LlamaSquad, self).forward(**kwargs)
