@@ -89,7 +89,7 @@ def get_answer(prompt, pipeline):
         instruction += len("[/INST] ")
         current_prompt = response.strip()
         current_prompt += prompt[:instruction] + "</s>"
-        logger.info("Instruction: %s", prompt[:instruction])
+        logger.debug("Instruction: %s", prompt[:instruction])
         prompt = prompt[instruction:]
         prompt = prompt[prompt.find("<s>") :]
         response = pipeline(
