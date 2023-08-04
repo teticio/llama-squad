@@ -131,7 +131,13 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 | Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 24.62%              | 3.72%                 |
 | [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 96.60%       | 41.30%        | 42.71%              | 37.76%                |
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities.
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+
+> One of the first Norman mercenaries to serve as a Byzantine general was Hervé in the 1050s. ...
+
+> When did Herve serve as a Norman general?
+
+Nevertheless, the results are encouraging and indicate that much better results could be obtained by applying the same procedure to the Llama 2 70b model.
 
 ### TODO
 
