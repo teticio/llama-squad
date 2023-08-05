@@ -30,6 +30,9 @@ class ScriptArguments:
     quantize: Optional[bool] = field(default=False)
     output_csv_file: Optional[str] = field(default="results/results.csv")
     debug: Optional[bool] = field(default=False)
+    shuffle: Optional[bool] = field(default=False)
+    seed: Optional[int] = field(default=None)
+    num_samples: Optional[int] = field(default=None)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -113,23 +116,31 @@ with open(script_args.output_csv_file, "w") as file:
             "Correct answers",
             "Model answer",
             "Full response",
-            "Exact match"
+            "Exact match",
         ]
     )
 
-    dataset_dict = load_from_disk(script_args.dataset)
-    for text in tqdm(dataset_dict["test"]["text"]):
+    dataset = load_from_disk(script_args.dataset)["test"]
+    if script_args.shuffle:
+        dataset = dataset.shuffle(seed=script_args.seed)
+    if script_args.num_samples is not None:
+        dataset = dataset.select(range(script_args.num_samples))
+
+    for text in tqdm(dataset["text"]):
         answer_start = text.rfind("```json")
         prompt = text[:answer_start]
         answers = extract_answer(text[answer_start:])
         context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
         logger.debug("Context: %s", context)
-        question = prompt[prompt.find("Question: ") + 10 : -9]
+        question = prompt[prompt.find("Question: ") + 10 : prompt.find("[/INST] ")]
+        question = question[: question.find("[/INST]")]
         logger.debug("Question: %s", question)
         logger.debug("Correct answers: %s", answers)
         model_answer, full_response = get_answer(prompt, pipeline)
         logger.debug("Model answer: %s", model_answer)
         exact_match = model_answer is not None and model_answer in answers
 
-        writer.writerow([context, question, answers, model_answer, full_response, exact_match])
+        writer.writerow(
+            [context, question, answers, model_answer, full_response, exact_match]
+        )
         file.flush()
