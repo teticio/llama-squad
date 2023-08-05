@@ -113,6 +113,7 @@ with open(script_args.output_csv_file, "w") as file:
             "Correct answer",
             "Model answer",
             "Full response",
+            "Exact match"
         ]
     )
 
@@ -120,14 +121,15 @@ with open(script_args.output_csv_file, "w") as file:
     for text in tqdm(dataset_dict["test"]["text"]):
         answer_start = text.rfind("```json")
         prompt = text[:answer_start]
-        answer = extract_answer(text[answer_start:])
+        answers = extract_answer(text[answer_start:])
         context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
         logger.debug("Context: %s", context)
         question = prompt[prompt.find("Question: ") + 10 : -9]
         logger.debug("Question: %s", question)
-        logger.debug("Correct answer: %s", answer)
+        logger.debug("Correct answers: %s", answers)
         model_answer, full_response = get_answer(prompt, pipeline)
         logger.debug("Model answer: %s", model_answer)
+        exact_match = model_answer is not None and model_answer in answers
 
-        writer.writerow([context, question, answer, model_answer, full_response])
+        writer.writerow([context, question, answers, model_answer, full_response, exact_match])
         file.flush()

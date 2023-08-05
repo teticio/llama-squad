@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -24,10 +25,14 @@ script_args = parser.parse_args_into_dataclasses()[0]
 SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
 
 
-def get_single_turn_prompt_and_response(item):
+def get_single_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
-    answer = item["answers"]["text"][0] if len(item["answers"]["text"]) > 0 else "?"
+    answers = item["answers"]["text"]
+    if len(answers) == 0:
+        answers = ["?"]
+    answers = "'" + json.dumps(answers) + "'" if all_answers else f'"{answers[0]}"'
+
     return {
         "text": get_prompt(
             f"""\
@@ -46,16 +51,20 @@ Question: {question}""",
         + f""" \
 ```json
 {{
-  "answer": "{answer}"
+  "answer": {answers}
 }}
 ``` </s>"""
     }
 
 
-def get_multi_turn_prompt_and_response(item):
+def get_multi_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
-    answer = item["answers"]["text"][0] if len(item["answers"]["text"]) > 0 else "?"
+    answers = item["answers"]["text"]
+    if len(answers) == 0:
+        answers = ["?"]
+    answers = "'" + json.dumps(answers) + "'" if all_answers else f'"{answers[0]}"'
+
     return {
         "text": get_prompt(
             """\
@@ -87,7 +96,7 @@ Extract the minimal span word for word from the context that best answers the qu
         + f""" \
 ```json
 {{
-  "answer": "{answer}"
+  "answer": {answers}
 }}
 ``` </s>"""
     }
@@ -101,6 +110,9 @@ instruction = {
 squad_dataset = load_dataset("squad_v2")
 train_dataset = squad_dataset["train"].map(instruction)
 print(train_dataset[0]["text"])
-test_dataset = squad_dataset["validation"].map(instruction)
+test_dataset = squad_dataset["validation"].map(
+    instruction, fn_kwargs={"all_answers": True}
+)
+print(test_dataset[0]["text"])
 dataset = DatasetDict({"train": train_dataset, "test": test_dataset})
 dataset.save_to_disk(script_args.dataset)

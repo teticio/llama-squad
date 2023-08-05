@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
             "name": "Python: train_llama_squad",
             "type": "python",
             "request": "launch",
@@ -13,13 +21,19 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                "--dataset_name", "data/squad_v2",
+                "--model_name",
+                "meta-llama/Llama-2-7b-chat-hf",
+                "--dataset_name",
+                "data/squad_v2",
                 "--bf16",
-                "--max_seq_length", "4096",
-                "--per_device_train_batch_size", "2",
-                "--gradient_accumulation_steps", "8",
-                "--max_steps", "100",
+                "--max_seq_length",
+                "4096",
+                "--per_device_train_batch_size",
+                "2",
+                "--gradient_accumulation_steps",
+                "8",
+                "--max_steps",
+                "100",
                 "--merge_and_push"
             ],
             "console": "integratedTerminal",
@@ -31,7 +45,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
-                // "--prompt", "multi_turn",
+                "--prompt", "multi_turn",
                 // "--dataset", "data/squad_v2_multi_turn",
             ],
             "console": "integratedTerminal",
@@ -44,10 +58,19 @@
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
                 // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                 "--adapter_name", "results/checkpoint-100",
+                //  "--adapter_name", "results/checkpoint-100",
                 // "--dataset", "data/squad_v2_multi_turn",
                 "--debug"
             ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Python: test_encoder_squad",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/test_encoder_squad.py",
+            "args": [],
             "console": "integratedTerminal",
             "justMyCode": false
         }

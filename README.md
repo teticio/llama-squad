@@ -126,8 +126,8 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 
 | Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct Abstentions |
 | ----------------------------- | ------------ | ------------- | ------------------- | --------------------- |
-| Llama 2 7b Chat (base model)  | 66.42%       | 16.64%        | 24.62%              | 3.72%                 |
-| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 97.17%       | 42.15%        | 43.36%              | 39.41%                |
+| Llama 2 7b Chat (base model)  | 66.42%       | 18.76%        | 28.24%              | 3.72%                 |
+| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 97.17%       | 47.22%        | 48.60%              | 39.44%                |
 
 The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing) reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
