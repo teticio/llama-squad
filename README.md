@@ -28,7 +28,7 @@ While ChatGPT has been fine-tuned with RLHF (Reinforcement Learning with Human F
 
 The idea here is to use the excellent [TRL](https://github.com/lvwerra/trl) library from Hugging Face's Leandro von Werra to SFT a model on the SQuAD v2 task. The current SQuAD v2 [SOTA](https://paperswithcode.com/sota/question-answering-on-squad20) is an Exact Match for 90.9% of the test set. The dataset consists of contexts, questions and answers - which are verbatim extracts from the contexts. In some cases, there *is* no answer to the question in the context, and so the answer is an empty string. Foundation models like ChatGPT may excel in "reasoning", but it can be challenging to ensure that the answers are taken word-for-word from the context. In the case that there is no answer, there is an additional risk that they will provide an answer from memory or a "hallucination". There is, of course, also a risk that the SQuAD v2 test dataset was used as part of the training set of the foundation model.
 
-We create a dataset according to the template that was used to train the chat version of Llama 2, with a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens followed by an instruction terminated by `[/INST]` and finally the ground truth answer (as a continuation of the prompt).
+We create a dataset according to the template that was used to train the chat version of Llama 2, with a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens followed by an instruction terminated by `[/INST]` and finally the ground truth answer (as a continuation of the prompt). There are several possible answers for each question in the SQuAD v2 dataset
 
 ````
 <s>[INST] <<SYS>>                                                                                                                                     
@@ -120,16 +120,53 @@ If you run out of GPU memory, pass the parameter `--quantize` to the script.
 python test_llama_squad.py --adapter_name=results/final_checkpoints
 ```
 
+### Multi-turn prompt
+
+We might be able to improve results by breaking the task down into stages using a multi-turn chat prompt. Running
+
+```bash
+python create_squad_dataset.py --prompt=multi_turn
+```
+
+will generate a dataset with prompts of the form:
+
+````
+<s>[INST] <<SYS>>
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+<</SYS>>
+
+Use the following context to answer the question. Think step by step and explain your reasoning.
+Context: The Normans (Norman: Nourmands; French: Normands; Latin: Normanni) were the people who in the 10th and 11th centuries gave their name to Normandy, a region in France. They were descended from Norse ("Norman" comes from "Norseman") raiders and pirates from Denmark, Iceland and Norway who, under their leader Rollo, agreed to swear fealty to King Charles III of West Francia. Through generations of assimilation and mixing with the native Frankish and Roman-Gaulish populations, their descendants would gradually merge with the Carolingian-based cultures of West Francia. The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century, and it continued to evolve over the succeeding centuries.
+Question: In what country is Normandy located? [/INST]  </s><s>[INST] Extract the minimal span word for word from the context that best answers the question. [/INST]  </s><s>[INST] Now give the answer in JSON format as follows:
+```json
+{
+  "answer": ...
+}
+```
+If the answer is not in the context, the answer should be "?". [/INST] ```json
+{
+  "answer": "France"
+}
+``` </s>
+````
+
+At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower.
+
 ### Results
 
-The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following results:
+The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing):
 
-| Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct Abstentions |
-| ----------------------------- | ------------ | ------------- | ------------------- | --------------------- |
-| Llama 2 7b Chat (base model)  | 66.42%       | 18.76%        | 28.24%              | 3.72%                 |
-| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1?workspace=user-teticio) | 97.17%       | 47.22%        | 48.60%              | 39.44%                |
+| Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
+| ----------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
+| Deberta v3 large squad 2      | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%                  |
+| Llama 2 7b chat (base model)  | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%                  |
+| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%                  |
+| [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%                  |
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing) reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+\* In this case, the test was run on a random subset of 1,000 examples, due to the long inference time and less impressive results.
+
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
 > Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
@@ -139,8 +176,6 @@ Nevertheless, the results are encouraging and indicate that much better results 
 
 ### TODO
 
-* Examples.
-* Multi-turn.
 * Compare with Llama 2 70b.
 * Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
 * Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).
