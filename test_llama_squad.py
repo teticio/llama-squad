@@ -110,7 +110,7 @@ with open(script_args.output_csv_file, "w") as file:
         [
             "Context",
             "Question",
-            "Correct answer",
+            "Correct answers",
             "Model answer",
             "Full response",
             "Exact match"
