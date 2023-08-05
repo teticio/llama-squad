@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
@@ -141,6 +142,6 @@ with open(script_args.output_csv_file, "w") as file:
         exact_match = model_answer is not None and model_answer in answers
 
         writer.writerow(
-            [context, question, answers, model_answer, full_response, exact_match]
+            [context, question, json.dumps(answers), model_answer, full_response, exact_match]
         )
         file.flush()

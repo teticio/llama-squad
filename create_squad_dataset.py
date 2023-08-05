@@ -31,7 +31,7 @@ def get_single_turn_prompt_and_response(item, all_answers=False):
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
-    answers = "'" + json.dumps(answers) + "'" if all_answers else f'"{answers[0]}"'
+    answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
 
     return {
         "text": get_prompt(
@@ -63,7 +63,7 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
-    answers = "'" + json.dumps(answers) + "'" if all_answers else f'"{answers[0]}"'
+    answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
 
     return {
         "text": get_prompt(
