@@ -26,7 +26,7 @@ class ScriptArguments:
     debug: Optional[bool] = field(default=False)
     shuffle: Optional[bool] = field(default=True)
     seed: Optional[int] = field(default=None)
-    num_samples: Optional[int] = field(default=10000)
+    num_samples: Optional[int] = field(default=1000)
 
 
 parser = HfArgumentParser(ScriptArguments)
