@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
+from time import sleep
 from typing import Optional
 
 import openai
@@ -69,13 +70,20 @@ Question: {sample["question"]}"""
             answers = ["?"]
         logger.debug("Correct answers: %s", answers)
 
-        completion = openai.ChatCompletion.create(
-            model=script_args.model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt},
-            ],
-        )
+        for _ in range(5):
+            try:
+                completion = openai.ChatCompletion.create(
+                    model=script_args.model_name,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+                break
+            except (openai.error.Timeout, openai.error.RateLimitError):
+                sleep(2 ** _)
+                continue
+
         full_response = completion.choices[0].message.content
         model_answer = extract_answer(full_response)
         logger.debug("Model answer: %s", model_answer)
