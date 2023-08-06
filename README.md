@@ -155,27 +155,27 @@ At inference time, the model is called instruction by instruction, and the model
 
 ### Results
 
-The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing):
+The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat and DeBERTa (an encoder model) for reference:
 
-| Model                         | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
-| ----------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
-| Deberta v3 large squad 2      | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%                  |
-| Llama 2 7b chat (base model)  | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%                  |
-| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%                  |
-| [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%                  |
+| Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
+| ------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
+| Llama 2 7b chat (base model)    | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
+| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1)      | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
+| [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr)      | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
+| TheBloke/Llama-2-70B-chat-GPTQ* | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
+| deepset/deberta-v3-large-squad2 | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 
-\* In this case, the test was run on a random subset of 1,000 examples, due to the long inference time and less impressive results.
+\* In these cases, the test was run on a random subset of 1,000 examples, due to the long inference time and less impressive results.
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). A qualtitative analysis of the results reveals that the model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat. Of course, DeBERTA is the clear winner, but the point of this exercise has been to fine-tune decoder models on a specific task and the table indicates that fine-tuning the 70B parameter model could yield interesting results. A qualtitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
 > Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
 > What isn't Thomas Piketty's job?
 
-Nevertheless, the results are encouraging and indicate that much better results could be obtained by applying the same procedure to the Llama 2 70b model.
+The DeBERTA model is strikingly good at determining whether the question is answerable and, I suspect that it may have learned to abstain when the question is phrased in a particular way. It would be interesting to train the 7B model over more epochs to see if it can learn the idiosyncrasies of the task.
 
 ### TODO
 
-* Compare with Llama 2 70b.
 * Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
 * Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).
