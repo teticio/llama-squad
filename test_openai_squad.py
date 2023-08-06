@@ -81,7 +81,7 @@ Question: {sample["question"]}"""
                 )
                 break
             except (openai.error.Timeout, openai.error.RateLimitError):
-                logger.warn("Sleeping for %s seconds", 2 ** _)
+                logger.warning("Sleeping for %s seconds", 2 ** _)
                 sleep(2 ** _)
                 continue
 
