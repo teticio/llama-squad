@@ -2,6 +2,7 @@ accelerate
 bitsandbytes
 datasets
 json5
+openai
 peft
 torch
 transformers

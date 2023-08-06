@@ -12,6 +12,8 @@ from peft import PeftModel
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
 
+from utils import extract_answer
+
 logger = logging.getLogger()
 transformers.logging.set_verbosity_error()
 
@@ -73,17 +75,6 @@ pipeline = transformers.pipeline(
 )
 
 
-def extract_answer(text):
-    text = text[text.find("{") :]
-    text = text[: text.find("}") + 1]
-    try:
-        # JSON5 is a little less picky than JSON
-        answer = json5.loads(text)["answer"]
-    except:
-        answer = None
-    return answer
-
-
 def get_answer(prompt, pipeline):
     response = ""
     while True:
@@ -142,6 +133,13 @@ with open(script_args.output_csv_file, "w") as file:
         exact_match = model_answer is not None and model_answer in answers
 
         writer.writerow(
-            [context, question, json.dumps(answers), model_answer, full_response, exact_match]
+            [
+                context,
+                question,
+                json.dumps(answers),
+                model_answer,
+                full_response,
+                exact_match,
+            ]
         )
         file.flush()

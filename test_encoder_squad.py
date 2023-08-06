@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from datasets import load_dataset
-from transformers import HfArgumentParser, pipeline
 from tqdm import tqdm
+from transformers import HfArgumentParser, pipeline
 
 
 @dataclass

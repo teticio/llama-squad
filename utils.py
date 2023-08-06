@@ -1,3 +1,5 @@
+import json5
+
 DEFAULT_SYSTEM_PROMPT = """\
 You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\
@@ -17,3 +19,14 @@ def get_prompt(
     message = message.strip() if do_strip else message
     texts.append(f"{message} [/INST]")
     return "".join(texts)
+
+
+def extract_answer(text):
+    text = text[text.find("{") :]
+    text = text[: text.find("}") + 1]
+    try:
+        # JSON5 is a little less picky than JSON
+        answer = json5.loads(text)["answer"]
+    except:
+        answer = None
+    return answer

@@ -19,8 +19,9 @@ from typing import Optional
 import torch
 from datasets import load_from_disk
 from peft import LoraConfig
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
     BitsAndBytesConfig,
     HfArgumentParser,
     TrainingArguments,
@@ -149,6 +150,7 @@ class ScriptArguments:
             "help": "The output directory where the model predictions and checkpoints will be written."
         },
     )
+    resume_from_checkpoint: Optional[str] = field(default=None)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -243,7 +245,7 @@ trainer = SFTTrainer(
     data_collator=data_collator,
 )
 
-trainer.train()
+trainer.train(resume_from_checkpoint=script_args.resume_from_checkpoint)
 
 if script_args.merge_and_push:
     output_dir = os.path.join(script_args.output_dir, "final_checkpoints")
