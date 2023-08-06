@@ -155,7 +155,7 @@ At inference time, the model is called instruction by instruction, and the model
 
 ### Results
 
-The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat and DeBERTa (an encoder model) for reference:
+The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat, GPT 3.5 Turbo and DeBERTa (an encoder model) for reference:
 
 | Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
 | ------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
@@ -163,6 +163,7 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 | [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1)      | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
 | [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr)      | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
 | TheBloke/Llama-2-70B-chat-GPTQ* | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
+| OpenAI GPT 3.5 Turbo*           | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | deepset/deberta-v3-large-squad2 | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to the long inference time and less impressive results.
