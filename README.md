@@ -18,7 +18,7 @@ Thankfully, there have been great advances in Open Source, from models like Llam
 
 As an aside, encoders are not usually used for generation, but they can be persuaded to do so. As they were pre-trained on Masked Language Modelling, you can get them to "fill in the blanks". Unfortunately, they quickly become incoherent when several blanks appear together. Nevertheless, using MCMC (Markov Chain Monte Carlo) methods, it is possible to get [good results](https://github.com/teticio/inBERTolate). If you attempt this with an encoder that has been fine-tuned on a specific task, you will find it generates gibberish. The "fine-tuning" is causing catastrophic forgetting that may or may not be an issue for your particular use case. Whatever the case, if a model can be used for multiple purposes, then the cost of training it can be more easily justified. I suspect that this is why available decoder models are so much larger than encoder models.
 
-It seems plausible that decoders may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer.
+It seems plausible that decoders may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer. Of course, the fact that encoder models also give an explanation as part of the answer makes them more suitable for human validation.
 
 So how can we specialize these generalized decoder models? How can we put the Human back In The Loop?
 
@@ -164,9 +164,10 @@ The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rat
 | [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr)      | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
 | TheBloke/Llama-2-70B-chat-GPTQ* | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*           | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
+| OpenAI GPT 4*                   | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
 | deepset/deberta-v3-large-squad2 | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 
-\* In these cases, the test was run on a random subset of 1,000 examples, due to the long inference time and less impressive results.
+\* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
 The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and is on par with OpenAI's GPT 3.5 Turbo. Of course, DeBERTA is the clear winner, but the point of this exercise has been to fine-tune decoder models on a specific task and the table indicates that fine-tuning the 70B parameter model could yield interesting results. A qualtitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
@@ -174,7 +175,7 @@ The fine-tuned model has clearly learned to respect JSON format, has learned to 
 
 > What isn't Thomas Piketty's job?
 
-The DeBERTA model is strikingly good at determining whether the question is answerable and, I suspect that it may have learned to abstain when the question is phrased in a particular way. It would be interesting to train the 7B model over more epochs to see if it can learn the idiosyncrasies of the task.
+The DeBERTA model is strikingly good at determining whether the question is answerable and, I suspect that it may have learned to abstain when the question is phrased in a particular way. It would be interesting to train the 7B parameter Llama 2 model over more epochs to see if it can learn the idiosyncrasies of the task.
 
 ### TODO
 

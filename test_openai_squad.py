@@ -8,8 +8,8 @@ from typing import Optional
 
 import openai
 from datasets import load_dataset
-from transformers import HfArgumentParser
 from tqdm import tqdm
+from transformers import HfArgumentParser
 
 from utils import extract_answer
 
@@ -81,8 +81,8 @@ Question: {sample["question"]}"""
                 )
                 break
             except (openai.error.Timeout, openai.error.RateLimitError):
-                logger.warning("Sleeping for %s seconds", 2 ** _)
-                sleep(2 ** _)
+                logger.warning("Sleeping for %s seconds", 2**_)
+                sleep(2**_)
                 continue
 
         full_response = completion.choices[0].message.content
