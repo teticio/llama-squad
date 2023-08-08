@@ -9,5 +9,4 @@ python train_llama_squad.py \
 --max_steps 10000 \
 --merge_and_push \
 --save_steps 1000 \
---learning_rate=2e-7 \
---resume_from_checkpoint results/final_checkpoints_single_turn
+--learning_rate=2e-7

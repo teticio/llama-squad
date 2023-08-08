@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-import json5
 import torch
 import transformers
 from datasets import load_from_disk
