@@ -128,15 +128,17 @@ On the test set, the models achieve the following [results](https://docs.google.
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and even beats OpenAI's GPT 4. Of course, DeBERTA is the clear winner - mainly thanks to its abstinence -  but the point of this exercise has been to fine-tune decoder models on a specific task, and the table indicates that fine-tuning the 70B parameter model could yield interesting results. A qualitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and even beats OpenAI's GPT 4. Of course, DeBERTA is the clear winner - mainly thanks to its abstinence - but I suspect that it may have learned to abstain when the question is phrased in a particular way (e.g., "What is *not* a...".)
+
+As the Llama 2 model is fine-tuned over more epochs, it continues to improve its accuracy on the SQuAD v2 task. It also tends to adhere more strictly to the output format, to the point of not returning an explanation in most cases (although it is still possible to ask it to produce its reasoning with a follow up prompt). To be sure that the model is not catastrophically forgetting, we compared its performance over the benchmark tests used in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard). We found that it performed as well as the base model in most cases, and even slightly better in others.
+
+A qualitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
 > Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
 > What isn't Thomas Piketty's job?
 
-As the model is fine-tuned over more epochs, it continues to improve its accuracy on the SQuAD v2 task. It also tends to adhere more strictly to the output format, to the point of not returning an explanation in most cases. It is still possible to ask it to produce its reasoning by simply asking it to do so. To be sure that the model is not catastrophically forgetting, we compare its performance over the benchmark tests used in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard). We found that the performance compared to the base model was unaffected in most cases while it improved slightly in others.
-
-The DeBERTA model is strikingly good at determining whether the question is answerable and, I suspect that it may have learned to abstain when the question is phrased in a particular way. It would be interesting to train the 7B parameter Llama 2 model over more epochs to see if it can learn the idiosyncrasies of the task.
+The table indicates that fine-tuning the 70B parameter model could yield interesting results.
 
 ## How to use
 
