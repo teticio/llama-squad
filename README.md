@@ -51,7 +51,7 @@ Question: When did Beyonce start becoming popular? [/INST] ```json
 ``` </s>
 ````
 
-## Masked Causal Language Modeling
+### Masked Causal Language Modeling
 
 We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response.
 
@@ -80,55 +80,13 @@ Think step by step and explain your reasoning.
 ````
 in the prompt. It would probably help if we were also able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens by modifying the `attention_mask`. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
 
-## How to use
+### Learning Rate
 
-### Install requirements
-
-```bash
-pip install -r requirements.txt
-```
-
-### Create dataset
-
-```bash
-python create_squad_dataset.py
-```
-
-### Train model
-
-The training script `train_llama_squad.py` is heavily based on [one](https://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da) provided by `younesbelkada`. It was important to use a much lower learning rate, in order to be able to train over the full training set without catastrophic forgetting. You may need to adjust the `per_device_train_batch_size` in order to fit the model in your GPU memory. You should also set the `gradient_accumulation_steps` so that `per_device_train_batch_size * gradient_accumulation_steps` is preserved.
-
-```bash
-python train_llama_squad.py \
---model_name meta-llama/Llama-2-7b-chat-hf \
---dataset_name data/squad_v2 \
---bf16 \
---max_seq_length 4096 \
---per_device_train_batch_size 4 \
---gradient_accumulation_steps 4 \
---max_steps 10000 \
---merge_and_push \
---save_steps 1000 \
---learning_rate=2e-7
-```
-
-### Evaluate model
-
-If you run out of GPU memory, pass the parameter `--quantize` to the script.
-
-```bash
-python test_llama_squad.py --adapter_name=results/final_checkpoints
-```
+The first experiment was performed with a learning rate of `2e-4`. The model quickly learned to respond reasonably well to the task, but it just as quickly completely forgot how to speak English. In order to be able to train over the full training set without catastrophic forgetting, we set the learning rate to `2e-7`. This was selected, somewhat heuristically, such that the "elbow" in the convergence graph coincided approximately with one epoch.
 
 ### Multi-turn prompt
 
-We might be able to improve results by breaking the task down into stages using a multi-turn chat prompt. Running
-
-```bash
-python create_squad_dataset.py --prompt=multi_turn
-```
-
-will generate a dataset with prompts of the form:
+We thought it might be possible to improve results by breaking the task down into stages using a multi-turn chat prompt of the form:
 
 ````
 <s>[INST] <<SYS>>
@@ -153,31 +111,87 @@ If the answer is not in the context, the answer should be "?". [/INST] ```json
 
 At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower.
 
-### Results
+## Results
 
-The fine-tuning was performed over 10,000 steps (1.2 epochs) with a learning rate of `2e-7`. On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat, GPT 3.5 Turbo and DeBERTa (an encoder model) for reference:
+On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat, GPT 3.5 Turbo and DeBERTa (an encoder model) for reference:
 
 | Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
-| ------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
-| Llama 2 7b chat (base model)    | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
-| [Fine-tuned (single turn)](https://wandb.ai/teticio/huggingface/runs/p00jazs1)      | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
-| [Fine-tuned (multi-turn)*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr)      | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
-| TheBloke/Llama-2-70B-chat-GPTQ* | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
-| OpenAI GPT 3.5 Turbo*           | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
-| OpenAI GPT 4*                   | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
-| deepset/deberta-v3-large-squad2 | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
+| ----------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
+| Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
+| [Fine-tuned (single turn) 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
+| Fine-tuned (single turn) 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
+| [Fine-tuned (multi-turn) 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
+| TheBloke/Llama-2-70B-chat-GPTQ*     | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
+| OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
+| OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
+| deepset/deberta-v3-large-squad2     | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
-The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and is on par with OpenAI's GPT 3.5 Turbo. Of course, DeBERTA is the clear winner, but the point of this exercise has been to fine-tune decoder models on a specific task and the table indicates that fine-tuning the 70B parameter model could yield interesting results. A qualtitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
+The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and even beats OpenAI's GPT 4. Of course, DeBERTA is the clear winner - mainly thanks to its abstinence -  but the point of this exercise has been to fine-tune decoder models on a specific task, and the table indicates that fine-tuning the 70B parameter model could yield interesting results. A qualitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 
 > Studies on income inequality and growth have sometimes found evidence confirming the Kuznets curve hypothesis, which states that with economic development, inequality first increases, then decreases. Economist Thomas Piketty challenges this notion, claiming that from 1914 to 1945 wars and "violent economic and political shocks" reduced inequality. Moreover, Piketty argues that the "magical" Kuznets curve hypothesis, with its emphasis on the balancing of economic growth in the long run, cannot account for the significant increase in economic inequality throughout the developed world since the 1970s.
 
 > What isn't Thomas Piketty's job?
 
+As the model is fine-tuned over more epochs, it continues to improve its accuracy on the SQuAD v2 task. It also tends to adhere more strictly to the output format, to the point of not returning an explanation in most cases. It is still possible to ask it to produce its reasoning by simply asking it to do so. To be sure that the model is not catastrophically forgetting, we compare its performance over the benchmark tests used in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard). We found that the performance compared to the base model was unaffected in most cases while it improved slightly in others.
+
 The DeBERTA model is strikingly good at determining whether the question is answerable and, I suspect that it may have learned to abstain when the question is phrased in a particular way. It would be interesting to train the 7B parameter Llama 2 model over more epochs to see if it can learn the idiosyncrasies of the task.
 
-### TODO
+## How to use
 
-* Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while further training the answer.
+### Install requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+### Create dataset
+
+```bash
+python create_squad_dataset.py
+```
+
+### Train model
+
+The training script `train_llama_squad.py` is heavily based on [one](https://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da) provided by `younesbelkada`. You may need to adjust the `per_device_train_batch_size` in order to fit the model in your GPU memory. You should also set the `gradient_accumulation_steps` so that `per_device_train_batch_size * gradient_accumulation_steps` is preserved.
+
+```bash
+python train_llama_squad.py \
+--model_name meta-llama/Llama-2-7b-chat-hf \
+--dataset_name data/squad_v2 \
+--bf16 \
+--max_seq_length 4096 \
+--per_device_train_batch_size 4 \
+--gradient_accumulation_steps 4 \
+--max_steps 10000 \
+--merge_and_push \
+--save_steps 1000 \
+--learning_rate=2e-7
+```
+
+### Evaluate model
+
+If you run out of GPU memory, pass the parameter `--quantize` to the script.
+
+```bash
+python test_llama_squad.py --adapter_name=results/final_checkpoints
+```
+
+This generates a CSV file `results/results.csv` which you can summarize with
+
+```bash
+python summarize_results.py
+```
+
+To see how the model performs on the benchmarks that are tracked in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard) run
+
+```bash
+./eval.sh results/final_checkpoints
+```
+
+## TODO
+
+* Add app based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
+* Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while training the answer with a high learning rate.
 * Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).

@@ -45,7 +45,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
-                "--prompt", "multi_turn",
+                // "--prompt", "multi_turn",
                 // "--dataset", "data/squad_v2_multi_turn",
             ],
             "console": "integratedTerminal",
