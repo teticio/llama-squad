@@ -99,13 +99,6 @@ def generate(
         yield history + [(message, response)]
 
 
-def process_example(message: str) -> tuple[str, list[tuple[str, str]]]:
-    generator = generate(message, [], DEFAULT_SYSTEM_PROMPT, 1024, 1, 0.95, 50)
-    for x in generator:
-        pass
-    return "", x
-
-
 def check_input_token_length(
     message: str, chat_history: list[tuple[str, str]], system_prompt: str
 ) -> None:
