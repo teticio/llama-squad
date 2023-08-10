@@ -66,10 +66,14 @@ class SquadDataCollator(DataCollatorForLanguageModeling):
 
         # Only apply cross entropy loss to the answer part of the labels
         for _ in range(batch["labels"].size(0)):
+            answer_end = (batch["labels"][_] == -100).nonzero(
+                as_tuple=True
+            )[0][0]
             answer_start = (batch["labels"][_] == self.answer_start_token_id).nonzero(
                 as_tuple=True
             )[0][-1]
             batch["labels"][_][:answer_start] = -100
+            batch["labels"][_][answer_end] = 2
 
         return batch
 ```
@@ -192,8 +196,8 @@ To see how the model performs on the benchmarks that are tracked in the [Open LL
 ./eval.sh results/final_checkpoints
 ```
 
-## TODO
+You can test out the model interactively with
 
-* Add app based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
-* Try EWC ([Elastic Weight Consolidation](https://arxiv.org/pdf/1612.00796.pdf)) to prevent catastrophic forgetting over the question, while training the answer with a high learning rate.
-* Try UKD ([Unsupervised Knowledge Distillation](https://arxiv.org/pdf/2302.11074.pdf)).
+```bash
+python app.py --adapter_name=results/final_checkpoints
+```

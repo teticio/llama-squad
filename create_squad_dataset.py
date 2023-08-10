@@ -5,7 +5,7 @@ from typing import Optional
 from datasets import DatasetDict, load_dataset
 from transformers import HfArgumentParser
 
-from utils import DEFAULT_SYSTEM_PROMPT, get_prompt
+from model import DEFAULT_SYSTEM_PROMPT, get_prompt
 
 
 @dataclass

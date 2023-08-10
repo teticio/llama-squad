@@ -1,6 +1,7 @@
 accelerate
 bitsandbytes
 datasets
+gradio
 json5
 openai
 peft

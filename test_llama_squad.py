@@ -4,14 +4,12 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-import torch
 import transformers
 from datasets import load_from_disk
-from peft import PeftModel
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig, HfArgumentParser
+from transformers import HfArgumentParser
 
-from utils import extract_answer
+from model import get_model_and_tokenizer, extract_answer
 
 logger = logging.getLogger()
 transformers.logging.set_verbosity_error()
@@ -21,15 +19,15 @@ transformers.logging.set_verbosity_error()
 class ScriptArguments:
     model_name: Optional[str] = field(default="meta-llama/Llama-2-7b-chat-hf")
     tokenizer_name: Optional[str] = field(
-        default="meta-llama/Llama-2-7b-chat-hf",
-    )
-    dataset: Optional[str] = field(
-        default="data/squad_v2",
+        default=None,
     )
     adapter_name: Optional[str] = field(
         default=None,
     )
     quantize: Optional[bool] = field(default=False)
+    dataset: Optional[str] = field(
+        default="data/squad_v2",
+    )
     output_csv_file: Optional[str] = field(default="results/results.csv")
     debug: Optional[bool] = field(default=False)
     shuffle: Optional[bool] = field(default=False)
@@ -42,30 +40,12 @@ script_args = parser.parse_args_into_dataclasses()[0]
 
 logging.basicConfig(level=logging.DEBUG if script_args.debug else logging.INFO)
 
-if script_args.quantize:
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=False,
-    )
-else:
-    bnb_config = None
-
-model = AutoModelForCausalLM.from_pretrained(
-    script_args.model_name,
-    device_map="auto",
-    use_auth_token=True,
-    trust_remote_code=True,
-    quantization_config=bnb_config,
+model, tokenizer = get_model_and_tokenizer(
+    model_name=script_args.model_name,
+    adapter_name=script_args.adapter_name,
+    tokenizer_name=script_args.tokenizer_name,
+    quantize=script_args.quantize,
 )
-
-if script_args.adapter_name is not None:
-    model = PeftModel.from_pretrained(
-        model, script_args.adapter_name, device_map="auto"
-    )
-    if not script_args.quantize:
-        model = model.merge_and_unload()
 
 pipeline = transformers.pipeline(
     "text-generation",
