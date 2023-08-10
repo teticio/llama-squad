@@ -50,7 +50,7 @@ model, tokenizer = get_model_and_tokenizer(
 pipeline = transformers.pipeline(
     "text-generation",
     model=model,
-    tokenizer=script_args.tokenizer_name,
+    tokenizer=tokenizer,
 )
 
 
