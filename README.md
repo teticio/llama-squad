@@ -78,6 +78,8 @@ class SquadDataCollator(DataCollatorForLanguageModeling):
         return batch
 ```
 
+Explicitly terminating the labels with the end of sequence token (`2`) encourages the model to learn to stop generating tokens after the answer. This has the downside that the model will tend not to provide any reasoning after providing the answer. Nevertheless, we found it was necessary to do this because, past a certain point the the training, the model would start to "obsessively" repeat garbled variations of the answer.
+
 Notice that we include
 ````
 Think step by step and explain your reasoning.
