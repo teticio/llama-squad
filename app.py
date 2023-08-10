@@ -120,6 +120,9 @@ def check_input_token_length(
 
 def get_random_question_and_answers():
     item = random.choice(dataset)
+    answers = item["answers"]["text"]
+    if len(answers) == 0:
+        answers = ["?"]
     return f"""\
 Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
 ```json
@@ -129,7 +132,7 @@ Extract from the following context the minimal span word for word that best answ
 ```
 If the answer is not in the context, the answer should be "?".
 Context: {item["context"]}
-Question: {item["question"]}""", ", ".join(item["answers"]["text"])
+Question: {item["question"]}""", ", ".join(answers)
 
 
 parser = HfArgumentParser(ScriptArguments)
