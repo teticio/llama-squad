@@ -126,6 +126,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
 | [Fine-tuned (single turn) 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
 | Fine-tuned (single turn) 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
+| Fine-tuned (single turn) 8.0 epochs | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
 | [Fine-tuned (multi-turn) 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
 | TheBloke/Llama-2-70B-chat-GPTQ*     | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
@@ -136,7 +137,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 
 The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and even beats OpenAI's GPT 4. Of course, DeBERTA is the clear winner - mainly thanks to its abstinence - but I suspect that it may have learned to abstain when the question is phrased in a particular way (e.g., "What is *not* a...".)
 
-As the Llama 2 model is fine-tuned over more epochs, it continues to improve its accuracy on the SQuAD v2 task. It also tends to adhere more strictly to the output format, to the point of not returning an explanation in most cases (although it is still possible to ask it to produce its reasoning with a follow up prompt). To be sure that the model is not catastrophically forgetting, we compared its performance over the benchmark tests used in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard). We found that it performed as well as the base model in most cases, and even slightly better in others.
+As the Llama 2 model is fine-tuned over more epochs, it continues to improve its accuracy on the SQuAD v2 task, up until about 8 epochs. It also tends to adhere more strictly to the output format, to the point of not returning an explanation in most cases (although it is still possible to ask it to produce its reasoning with a follow up prompt). To be sure that the model is not catastrophically forgetting, we compared its performance over the benchmark tests used in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard). We found that it performed as well as the base model in most cases, and even slightly better in others.
 
 A qualitative analysis of the results reveals that the 7B parameter model is inherently limited by its reasoning capabilities. It is often tripped up by deliberately misleading questions, such as the following:
 

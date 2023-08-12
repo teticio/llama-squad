@@ -1,5 +1,6 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
+import json
 import random
 from dataclasses import dataclass, field
 from typing import Iterator, Optional
@@ -16,27 +17,6 @@ from model import (
     run,
 )
 
-MAX_MAX_NEW_TOKENS = 2048
-DEFAULT_MAX_NEW_TOKENS = 1024
-MAX_INPUT_TOKEN_LENGTH = 4000
-
-DESCRIPTION = """
-# LLaMA SQuAD
-
-![LLaMA SQuAD](https://github.com/teticio/llama-squad/blob/main/llama_squad.png?raw=true)
-"""
-
-LICENSE = """
-<p/>
-
----
-As a derivate work of [Llama-2-7b-chat](https://huggingface.co/meta-llama/Llama-2-7b-chat) by Meta,
-this demo is governed by the original [license](https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat/blob/main/LICENSE.txt) and [acceptable use policy](https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat/blob/main/USE_POLICY.md).
-"""
-
-if not torch.cuda.is_available():
-    DESCRIPTION += "\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>"
-
 
 @dataclass
 class ScriptArguments:
@@ -48,6 +28,36 @@ class ScriptArguments:
         default=None,
     )
     quantize: Optional[bool] = field(default=False)
+
+
+parser = HfArgumentParser(ScriptArguments)
+script_args = parser.parse_args_into_dataclasses()[0]
+
+MAX_MAX_NEW_TOKENS = 2048
+DEFAULT_MAX_NEW_TOKENS = 1024
+MAX_INPUT_TOKEN_LENGTH = 4000
+
+DESCRIPTION = f"""
+# LLaMA SQuAD
+
+![LLaMA SQuAD](https://github.com/teticio/llama-squad/blob/main/llama_squad.png?raw=true)
+
+#### Base model: {script_args.model_name}
+#### Adapter checkpoints: {script_args.adapter_name}
+#### Choose a random question, press submit and then see if the answer is one of the correct ones below. You can then ask it to "Please explain your reasoning".
+"""
+
+if not torch.cuda.is_available():
+    DESCRIPTION += "\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>"
+
+
+LICENSE = """
+<p/>
+
+---
+As a derivate work of [Llama-2-7b-chat](https://huggingface.co/meta-llama/Llama-2-7b-chat) by Meta,
+this demo is governed by the original [license](https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat/blob/main/LICENSE.txt) and [acceptable use policy](https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat/blob/main/USE_POLICY.md).
+"""
 
 
 def clear_and_save_textbox(message: str) -> tuple[str, str]:
@@ -125,11 +135,10 @@ Extract from the following context the minimal span word for word that best answ
 ```
 If the answer is not in the context, the answer should be "?".
 Context: {item["context"]}
-Question: {item["question"]}""", ", ".join(answers)
+Question: {item["question"]}""", json.dumps(
+        answers
+    )
 
-
-parser = HfArgumentParser(ScriptArguments)
-script_args = parser.parse_args_into_dataclasses()[0]
 
 model, tokenizer = get_model_and_tokenizer(
     model_name=script_args.model_name,
