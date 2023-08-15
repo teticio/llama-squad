@@ -128,7 +128,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Fine-tuned (single turn) 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
 | Fine-tuned (single turn) 8.0 epochs | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
 | [Fine-tuned (multi-turn) 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
-| TheBloke/Llama-2-70B-chat-GPTQ*     | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
+| Llama 2 70b chat (quantized)        | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
 | deepset/deberta-v3-large-squad2     | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
