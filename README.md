@@ -145,7 +145,7 @@ A qualitative analysis of the results reveals that the 7B parameter model is inh
 
 > What isn't Thomas Piketty's job?
 
-The table indicates that fine-tuning the 70B parameter model could yield interesting results.
+The table indicates that fine-tuning the 70B parameter model could yield interesting results. To give some idea of the cost, a A100 with 80Gb VRAM currently costs $1.69 an hour on [runpods.io](https://runpods.io). The maximum batch size that fits is 2 and 1 training step takes about 45 seconds so 10,000 steps (1.2 epochs) would cost around $200.
 
 ## How to use
 
