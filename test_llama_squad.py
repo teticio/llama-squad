@@ -33,6 +33,7 @@ class ScriptArguments:
     shuffle: Optional[bool] = field(default=False)
     seed: Optional[int] = field(default=None)
     num_samples: Optional[int] = field(default=None)
+    num_beams: Optional[int] = field(default=1)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -69,6 +70,7 @@ def get_answer(prompt, pipeline):
         response = pipeline(
             current_prompt,
             do_sample=False,
+            num_beams=script_args.num_beams,
             num_return_sequences=1,
             max_new_tokens=512,
         )[0]["generated_text"]

@@ -90,6 +90,10 @@ in the prompt. It would probably help if we were also able to include the reason
 
 The first experiment was performed with a learning rate of `2e-4`. The model quickly learned to respond reasonably well to the task, but it just as quickly completely forgot how to speak English. In order to be able to train over the full training set without catastrophic forgetting, we set the learning rate to `2e-7`. This was selected, somewhat heuristically, such that the "elbow" in the convergence graph coincided approximately with one epoch.
 
+### LORA rank
+
+LORA works by inserting [low rank](https://web.stanford.edu/class/cs168/l/l9.pdf) trainable weight matrices between layers, while freezing all the other weights. Lower rank matrices can be compressed into fewer parameters but are less expressive. We tried ranks of 16, 64 and 512 but didn't notice any significant difference in performance, so we settled on 64.
+
 ### Multi-turn prompt
 
 We thought it might be possible to improve results by breaking the task down into stages using a multi-turn chat prompt of the form:
@@ -124,10 +128,11 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
 | ----------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
 | Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
-| [Fine-tuned (single turn) 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
-| Fine-tuned (single turn) 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
-| Fine-tuned (single turn) 8.0 epochs | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
-| [Fine-tuned (multi-turn) 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
+| [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
+| Fine-tuned single-turn 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
+| Fine-tuned single-turn 8.0 epochs 1 beam | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
+| Fine-tuned single-turn 8.0 epochs 10 beams | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
+| [Fine-tuned multi-turn 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
 | Llama 2 70b chat (quantized)        | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
