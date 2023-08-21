@@ -1,5 +1,5 @@
 from transformers import DataCollatorForLanguageModeling
-
+import torch
 
 class SquadDataCollator(DataCollatorForLanguageModeling):
     answer_start_token_id = 7521  # "_```"
@@ -8,12 +8,11 @@ class SquadDataCollator(DataCollatorForLanguageModeling):
         batch = super().__call__(examples)
 
         # Only apply cross entropy loss to the answer part of the labels
-        for _ in range(batch["labels"].size(0)):
-            answer_end = (batch["labels"][_] == -100).nonzero(as_tuple=True)[0][0]
-            answer_start = (batch["labels"][_] == self.answer_start_token_id).nonzero(
-                as_tuple=True
-            )[0][-1]
-            batch["labels"][_][:answer_start] = -100
-            batch["labels"][_][answer_end] = 2
+        for idx, label in enumerate(batch["labels"]):
+            answer_end = torch.where(label == -100)[0][0]
+            answer_start = torch.where(label == self.answer_start_token_id)[0][-1]
+            label[:answer_start] = -100
+            label[answer_end] = 2
+            batch["labels"][idx] = label
 
         return batch

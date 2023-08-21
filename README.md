@@ -18,7 +18,7 @@ Thankfully, there have been great advances in Open Source, from models like Llam
 
 As an aside, encoders are not usually used for generation, but they can be persuaded to do so. As they were pre-trained on Masked Language Modelling, you can get them to "fill in the blanks". Unfortunately, they quickly become incoherent when several blanks appear together. Nevertheless, using MCMC (Markov Chain Monte Carlo) methods, it is possible to get [good results](https://github.com/teticio/inBERTolate). If you attempt this with an encoder that has been fine-tuned on a specific task, you will find it generates gibberish. The "fine-tuning" is causing catastrophic forgetting that may or may not be an issue for your particular use case. Whatever the case, if a model can be used for multiple purposes, then the cost of training it can be more easily justified. I suspect that this is why available decoder models are so much larger than encoder models.
 
-It seems plausible that decoders may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer. Of course, the fact that encoder models also give an explanation as part of the answer makes them more suitable for human validation.
+It seems plausible that decoders may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer. Of course, the fact that decoder models also give an explanation as part of the answer makes them more suitable for human validation.
 
 So how can we specialize these generalized decoder models? How can we put the Human back In The Loop?
 
@@ -65,15 +65,12 @@ class SquadDataCollator(DataCollatorForLanguageModeling):
         batch = super().__call__(examples)
 
         # Only apply cross entropy loss to the answer part of the labels
-        for _ in range(batch["labels"].size(0)):
-            answer_end = (batch["labels"][_] == -100).nonzero(
-                as_tuple=True
-            )[0][0]
-            answer_start = (batch["labels"][_] == self.answer_start_token_id).nonzero(
-                as_tuple=True
-            )[0][-1]
-            batch["labels"][_][:answer_start] = -100
-            batch["labels"][_][answer_end] = 2
+        for idx, label in enumerate(batch["labels"]):
+            answer_end = torch.where(label == -100)[0][0]
+            answer_start = torch.where(label == self.answer_start_token_id)[0][-1]
+            label[:answer_start] = -100
+            label[answer_end] = 2
+            batch["labels"][idx] = label
 
         return batch
 ```
