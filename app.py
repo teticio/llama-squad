@@ -10,6 +10,7 @@ import torch
 from datasets import load_dataset
 from transformers import HfArgumentParser
 
+from create_squad_dataset import get_single_turn_prompt_and_response
 from model import (
     DEFAULT_SYSTEM_PROMPT,
     get_model_and_tokenizer,
@@ -84,9 +85,6 @@ def generate(
     history_with_input: list[tuple[str, str]],
     system_prompt: str,
     max_new_tokens: int,
-    temperature: float,
-    top_p: float,
-    top_k: int,
 ) -> Iterator[list[tuple[str, str]]]:
     if max_new_tokens > MAX_MAX_NEW_TOKENS:
         raise ValueError
@@ -123,21 +121,8 @@ def check_input_token_length(
 
 def get_random_question_and_answers():
     item = random.choice(dataset)
-    answers = item["answers"]["text"]
-    if len(answers) == 0:
-        answers = ["?"]
-    return f"""\
-Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
-```json
-{{
-  "answer": ...
-}}
-```
-If the answer is not in the context, the answer should be "?".
-Context: {item["context"]}
-Question: {item["question"]}""", json.dumps(
-        answers
-    )
+    messages = get_single_turn_prompt_and_response(item)["messages"]
+    return (messages[1]["content"], item["answers"]["text"])
 
 
 model, tokenizer = get_model_and_tokenizer(

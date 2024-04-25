@@ -18,22 +18,23 @@
             "request": "launch",
             "program": "${workspaceFolder}/train_llama_squad.py",
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                // "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
                 "--model_name",
-                "meta-llama/Llama-2-7b-chat-hf",
+                // "meta-llama/Llama-2-7b-chat-hf",
+                "meta-llama/Meta-Llama-3-8B-Instruct",
                 "--dataset_name",
                 "data/squad_v2",
                 "--bf16",
                 "--max_seq_length",
                 "4096",
                 "--per_device_train_batch_size",
-                "2",
+                "1",
                 "--gradient_accumulation_steps",
-                "8",
+                "16",
                 "--max_steps",
-                "100",
+                "65000",
                 "--merge_and_push"
             ],
             "console": "integratedTerminal",
@@ -57,8 +58,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
-                // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
-                //  "--adapter_name", "results/checkpoint-100",
+                "--model_name", "meta-llama/Meta-Llama-3-8B-Instruct",
+                "--adapter_name", "results/checkpoint-7000",
                 // "--dataset", "data/squad_v2_multi_turn",
                 "--debug"
             ],

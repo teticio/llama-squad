@@ -55,32 +55,35 @@ pipeline = transformers.pipeline(
 )
 
 
-def get_answer(prompt, pipeline):
-    response = ""
-    while True:
-        instruction = prompt.find("[/INST] ")
-        if instruction == -1:
-            break
-        instruction += len("[/INST] ")
-        current_prompt = response.strip()
-        current_prompt += prompt[:instruction] + "</s>"
-        logger.debug("Instruction: %s", prompt[:instruction])
-        prompt = prompt[instruction:]
-        prompt = prompt[prompt.find("<s>") :]
+def get_answer(messages, pipeline):
+    assistant_messages = [
+        message
+        for message in range(len(messages))
+        if messages[message]["role"] == "assistant"
+    ]
+
+    for assistant_message in assistant_messages:
+        prompt = tokenizer.apply_chat_template(
+            messages[:assistant_message], tokenize=False, add_generation_prompt=True
+        )
+
         response = pipeline(
-            current_prompt,
+            prompt,
             do_sample=False,
             num_beams=script_args.num_beams,
             num_return_sequences=1,
             max_new_tokens=512,
+            temperature=None,
+            top_p=None,
         )[0]["generated_text"]
-        logger.debug("Response: %s", response[len(current_prompt) :].strip())
+        response = response[len(prompt) :].strip()
+        messages[assistant_message] = {"role": "assistant", "content": response}
+        logger.debug("Response: %s", response)
 
-    response = response[len(current_prompt) :].strip()
     return extract_answer(response), response
 
 
-with open(script_args.output_csv_file, "w") as file:
+with open(script_args.output_csv_file, "a") as file:
     writer = csv.writer(file)
     writer.writerow(
         [
@@ -99,17 +102,16 @@ with open(script_args.output_csv_file, "w") as file:
     if script_args.num_samples is not None:
         dataset = dataset.select(range(script_args.num_samples))
 
-    for text in tqdm(dataset["text"]):
-        answer_start = text.rfind("```json")
-        prompt = text[:answer_start]
-        answers = extract_answer(text[answer_start:])
+    for messages in tqdm(dataset["messages"]):
+        answers = extract_answer(messages[-1]["content"])
+        prompt = messages[1]["content"]
         context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
         logger.debug("Context: %s", context)
-        question = prompt[prompt.find("Question: ") + 10 : prompt.find("[/INST] ")]
-        question = question[: question.find("[/INST]")]
+        question = prompt[prompt.find("Question: ") + 10 :]
         logger.debug("Question: %s", question)
         logger.debug("Correct answers: %s", answers)
-        model_answer, full_response = get_answer(prompt, pipeline)
+
+        model_answer, full_response = get_answer(messages, pipeline)
         logger.debug("Model answer: %s", model_answer)
         exact_match = model_answer is not None and model_answer in answers
 

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
+from textwrap import dedent
 from time import sleep
 from typing import Optional
 
@@ -11,7 +12,7 @@ from datasets import load_dataset
 from tqdm import tqdm
 from transformers import HfArgumentParser
 
-from utils import extract_answer
+from model import extract_answer
 
 logger = logging.getLogger()
 
@@ -54,16 +55,17 @@ with open(script_args.output_csv_file, "w") as file:
     )
 
     for sample in tqdm(dataset):
-        prompt = f"""\
-Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
-```json
-{{
-  "answer": ...
-}}
-```
-If the answer is not in the context, the answer should be "?".
-Context: {sample["context"]}
-Question: {sample["question"]}"""
+        prompt = dedent(f"""\
+            Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+            ```json
+            {{
+            "answer": ...
+            }}
+            ```
+            If the answer is not in the context, the answer should be "?".
+            Context: {sample["context"]}
+            Question: {sample["question"]}"""
+        )
 
         answers = sample["answers"]["text"]
         if len(answers) == 0:

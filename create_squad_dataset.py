@@ -1,11 +1,12 @@
 import json
 from dataclasses import dataclass, field
+from textwrap import dedent
 from typing import Optional
 
 from datasets import DatasetDict, load_dataset
 from transformers import HfArgumentParser
 
-from model import DEFAULT_SYSTEM_PROMPT, get_prompt
+from model import DEFAULT_SYSTEM_PROMPT
 
 
 @dataclass
@@ -34,26 +35,35 @@ def get_single_turn_prompt_and_response(item, all_answers=False):
     answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
 
     return {
-        "text": get_prompt(
-            f"""\
-Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
-```json
-{{
-  "answer": ...
-}}
-```
-If the answer is not in the context, the answer should be "?".
-Context: {context}
-Question: {question}""",
-            [],
-            SYSTEM_PROMPT,
-        )
-        + f""" \
-```json
-{{
-  "answer": {answers}
-}}
-``` </s>"""
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": dedent(
+                    f"""\
+                    Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+                    ```json
+                    {{
+                    "answer": ...
+                    }}
+                    ```
+                    If the answer is not in the context, the answer should be "?".
+                    Context: {context}
+                    Question: {question}"""
+                ),
+            },
+            {
+                "role": "assistant",
+                "content": dedent(
+                    f""" \
+                    ```json
+                    {{
+                    "answer": {answers}
+                    }}
+                    ```"""
+                ),
+            },
+        ]
     }
 
 
@@ -66,39 +76,53 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
     answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
 
     return {
-        "text": get_prompt(
-            """\
-Now give the answer in JSON format as follows:
-```json
-{
-  "answer": ...
-}
-```
-If the answer is not in the context, the answer should be "?".
-""",
-            [
-                (
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": dedent(
                     f"""\
-Use the following context to answer the question. Think step by step and explain your reasoning.
-Context: {context}
-Question: {question}""",
-                    "",
+                    Use the following context to answer the question. Think step by step and explain your reasoning.
+                    Context: {context}
+                    Question: {question}"""
                 ),
-                (
-                    f"""\
-Extract the minimal span word for word from the context that best answers the question.
-        """,
-                    "",
+            },
+            {"role": "assistant", "content": ""},
+            {
+                "role": "user",
+                "content": dedent(
+                    """\
+                    Extract the minimal span word for word from the context that best answers the question.
+                    """
                 ),
-            ],
-            SYSTEM_PROMPT,
-        )
-        + f""" \
-```json
-{{
-  "answer": {answers}
-}}
-``` </s>"""
+            },
+            {"role": "assistant", "content": ""},
+            {
+                "role": "user",
+                "content": dedent(
+                    """\
+                    Now give the answer in JSON format as follows:
+                    ```json
+                    {
+                    "answer": ...
+                    }
+                    ```
+                    If the answer is not in the context, the answer should be "?".
+                    """
+                ),
+            },
+            {
+                "role": "assistant",
+                "content": dedent(
+                    f""" \
+                ```json
+                {{
+                "answer": {answers}
+                }}
+                ```"""
+                ),
+            },
+        ]
     }
 
 
@@ -109,10 +133,10 @@ instruction = {
 
 squad_dataset = load_dataset("squad_v2")
 train_dataset = squad_dataset["train"].map(instruction)
-print(train_dataset[0]["text"])
+print(train_dataset[0])
 test_dataset = squad_dataset["validation"].map(
     instruction, fn_kwargs={"all_answers": True}
 )
-print(test_dataset[0]["text"])
+print(test_dataset[0])
 dataset = DatasetDict({"train": train_dataset, "test": test_dataset})
 dataset.save_to_disk(script_args.dataset)

@@ -231,18 +231,22 @@ dataset = load_from_disk(script_args.dataset_name)["train"]
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
-data_collator = SquadDataCollator(tokenizer=tokenizer, mlm=False)
+answer_start_tokens = torch.tensor(
+    tokenizer.vocab.get("▁```", tokenizer.encode("\n\n```", add_special_tokens=False))
+).view(-1)
+
+data_collator = SquadDataCollator(answer_start_tokens=answer_start_tokens, tokenizer=tokenizer, mlm=False)
 
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     peft_config=peft_config,
-    dataset_text_field="text",
     max_seq_length=script_args.max_seq_length,
     tokenizer=tokenizer,
     args=training_arguments,
     packing=script_args.packing,
     data_collator=data_collator,
+    formatting_func=lambda items: tokenizer.apply_chat_template(items["messages"], tokenize=False),
 )
 
 trainer.train(resume_from_checkpoint=script_args.resume_from_checkpoint)
