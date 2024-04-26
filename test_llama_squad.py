@@ -83,7 +83,7 @@ def get_answer(messages, pipeline):
     return extract_answer(response), response
 
 
-with open(script_args.output_csv_file, "a") as file:
+with open(script_args.output_csv_file, "w") as file:
     writer = csv.writer(file)
     writer.writerow(
         [
