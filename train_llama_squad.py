@@ -191,7 +191,19 @@ def create_and_prepare_model(args):
     # check: https://github.com/huggingface/transformers/pull/24906
     model.config.pretraining_tp = 1
 
+    import re
+    model_modules = str(model.modules)
+    pattern = r'\((\w+)\): Linear'
+    linear_layer_names = re.findall(pattern, model_modules)
+
+    # target all linear layers
+    names = []
+    for name in linear_layer_names:
+        names.append(name)
+    target_modules = list(set(names))
+
     peft_config = LoraConfig(
+        target_modules=target_modules,
         lora_alpha=script_args.lora_alpha,
         lora_dropout=script_args.lora_dropout,
         r=script_args.lora_r,
