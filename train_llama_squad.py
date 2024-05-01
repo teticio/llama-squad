@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import os
 from dataclasses import dataclass, field
 from typing import Optional
@@ -122,11 +123,18 @@ class ScriptArguments:
             "help": "Learning rate schedule. Constant a bit better than cosine, and has advantage for analysis"
         },
     )
+    lr_scheduler_kwargs: str = field(
+        default="{}",
+        metadata={
+            "help": "Learning rate scheduler kwargs. For example: '{\"num_warmup_steps\": 0}'"
+        },
+    )
     max_steps: int = field(
         default=10000, metadata={"help": "How many optimizer update steps to take"}
     )
     warmup_ratio: float = field(
-        default=0.03, metadata={"help": "Fraction of steps to do a warmup for"}
+        default=None,
+        metadata={"help": "Fraction of steps to do a warmup for"},
     )
     group_by_length: bool = field(
         default=True,
@@ -192,8 +200,9 @@ def create_and_prepare_model(args):
     model.config.pretraining_tp = 1
 
     import re
+
     model_modules = str(model.modules)
-    pattern = r'\((\w+)\): Linear'
+    pattern = r"\((\w+)\): Linear"
     linear_layer_names = re.findall(pattern, model_modules)
 
     # target all linear layers
@@ -234,6 +243,7 @@ training_arguments = TrainingArguments(
     warmup_ratio=script_args.warmup_ratio,
     group_by_length=script_args.group_by_length,
     lr_scheduler_type=script_args.lr_scheduler_type,
+    lr_scheduler_kwargs=json.loads(script_args.lr_scheduler_kwargs),
 )
 
 model, peft_config, tokenizer = create_and_prepare_model(script_args)
@@ -247,7 +257,9 @@ answer_start_tokens = torch.tensor(
     tokenizer.vocab.get("▁```", tokenizer.encode("\n\n```", add_special_tokens=False))
 ).view(-1)
 
-data_collator = SquadDataCollator(answer_start_tokens=answer_start_tokens, tokenizer=tokenizer, mlm=False)
+data_collator = SquadDataCollator(
+    answer_start_tokens=answer_start_tokens, tokenizer=tokenizer, mlm=False
+)
 
 trainer = SFTTrainer(
     model=model,
@@ -258,7 +270,9 @@ trainer = SFTTrainer(
     args=training_arguments,
     packing=script_args.packing,
     data_collator=data_collator,
-    formatting_func=lambda items: tokenizer.apply_chat_template(items["messages"], tokenize=False),
+    formatting_func=lambda items: tokenizer.apply_chat_template(
+        items["messages"], tokenize=False
+    ),
 )
 
 trainer.train(resume_from_checkpoint=script_args.resume_from_checkpoint)
