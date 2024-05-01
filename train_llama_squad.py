@@ -126,14 +126,14 @@ class ScriptArguments:
     lr_scheduler_kwargs: str = field(
         default="{}",
         metadata={
-            "help": "Learning rate scheduler kwargs. For example: '{\"num_warmup_steps\": 0}'"
+            "help": "Learning rate scheduler kwargs. For example: '{\"num_cycles\": 3}'"
         },
     )
     max_steps: int = field(
         default=10000, metadata={"help": "How many optimizer update steps to take"}
     )
     warmup_ratio: float = field(
-        default=None,
+        default=0.3,
         metadata={"help": "Fraction of steps to do a warmup for"},
     )
     group_by_length: bool = field(

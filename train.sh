@@ -9,8 +9,6 @@ python train_llama_squad.py \
 --max_steps 65000 \
 --merge_and_push \
 --save_steps 1000 \
---warmup_ratio 0.0625 \
---learning_rate=2e-6 \
+--learning_rate=1e-6 \
 --lr_scheduler_type=cosine \
 --lr_scheduler_kwargs='{"num_cycles": 3}'
-
