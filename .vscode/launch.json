@@ -58,8 +58,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
+                // "--model_name", "meta-llama/Llama-2-7b-chat-hf",
                 "--model_name", "meta-llama/Meta-Llama-3-8B-Instruct",
-                "--adapter_name", "results/checkpoint-7000",
+                "--adapter_name", "results/checkpoint-10000",
+                // "--force_answer", "True",
                 // "--dataset", "data/squad_v2_multi_turn",
                 "--debug"
             ],

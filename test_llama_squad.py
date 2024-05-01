@@ -4,10 +4,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
+import torch
 import transformers
 from datasets import load_from_disk
 from tqdm import tqdm
-from transformers import HfArgumentParser
+from transformers import HfArgumentParser, StoppingCriteria, StoppingCriteriaList
 
 from model import get_model_and_tokenizer, extract_answer
 
@@ -34,6 +35,7 @@ class ScriptArguments:
     seed: Optional[int] = field(default=None)
     num_samples: Optional[int] = field(default=None)
     num_beams: Optional[int] = field(default=1)
+    force_answer: Optional[bool] = field(default=False)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -55,6 +57,14 @@ pipeline = transformers.pipeline(
 )
 
 
+class StopAfterToken(StoppingCriteria):
+    def __init__(self, token_id: int):
+        self.token_id = token_id
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+        return input_ids[0][-1] == self.token_id
+
+
 def get_answer(messages, pipeline):
     assistant_messages = [
         message
@@ -62,10 +72,22 @@ def get_answer(messages, pipeline):
         if messages[message]["role"] == "assistant"
     ]
 
-    for assistant_message in assistant_messages:
-        prompt = tokenizer.apply_chat_template(
-            messages[:assistant_message], tokenize=False, add_generation_prompt=True
-        )
+    for _, assistant_message in enumerate(assistant_messages):
+        if script_args.force_answer and _ == len(assistant_messages) - 1:
+            prompt = tokenizer.apply_chat_template(
+                messages[:assistant_message]
+                + [{"role": "assistant", "content": "PLACEHOLDER"}],
+                tokenize=False,
+            )
+            prompt = prompt[: prompt.rfind("PLACEHOLDER")] + "```json"
+            stopping_criteria = StoppingCriteriaList(
+                [StopAfterToken(tokenizer.vocab.get("}Ċ", tokenizer.vocab["}"]))]
+            )
+        else:
+            prompt = tokenizer.apply_chat_template(
+                messages[:assistant_message], tokenize=False, add_generation_prompt=True
+            )
+            stopping_criteria = None
 
         response = pipeline(
             prompt,
@@ -75,6 +97,7 @@ def get_answer(messages, pipeline):
             max_new_tokens=512,
             temperature=None,
             top_p=None,
+            stopping_criteria=stopping_criteria,
         )[0]["generated_text"]
         response = response[len(prompt) :].strip()
         messages[assistant_message] = {"role": "assistant", "content": response}
