@@ -115,11 +115,11 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
                 "role": "assistant",
                 "content": dedent(
                     f""" \
-                ```json
-                {{
-                "answer": {answers}
-                }}
-                ```"""
+                    ```json
+                    {{
+                    "answer": {answers}
+                    }}
+                    ```"""
                 ),
             },
         ]
