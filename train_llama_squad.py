@@ -133,7 +133,7 @@ class ScriptArguments:
         default=10000, metadata={"help": "How many optimizer update steps to take"}
     )
     warmup_ratio: float = field(
-        default=0.3,
+        default=0,
         metadata={"help": "Fraction of steps to do a warmup for"},
     )
     group_by_length: bool = field(

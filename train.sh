@@ -10,5 +10,5 @@ python train_llama_squad.py \
 --merge_and_push \
 --save_steps 1000 \
 --learning_rate=1e-6 \
---lr_scheduler_type=cosine \
+--lr_scheduler_type=cosine_with_restarts \
 --lr_scheduler_kwargs='{"num_cycles": 3}'
