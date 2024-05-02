@@ -55,7 +55,8 @@ with open(script_args.output_csv_file, "w") as file:
     )
 
     for sample in tqdm(dataset):
-        prompt = dedent(f"""\
+        prompt = dedent(
+            f"""\
             Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
             ```json
             {{

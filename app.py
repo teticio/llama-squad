@@ -13,8 +13,8 @@ from transformers import HfArgumentParser
 from create_squad_dataset import get_single_turn_prompt_and_response
 from model import (
     DEFAULT_SYSTEM_PROMPT,
-    get_model_and_tokenizer,
     get_input_token_length,
+    get_model_and_tokenizer,
     run,
 )
 

@@ -1,15 +1,17 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
-import json5
 from threading import Thread
 from typing import Iterator, Optional
 
-from peft import PeftModel
+import json5
 import torch
+from peft import PeftModel
 from transformers import (
     AutoModelForCausalLM,
-    BitsAndBytesConfig,
     AutoTokenizer,
+    BitsAndBytesConfig,
+    StoppingCriteria,
+    StoppingCriteriaList,
     TextIteratorStreamer,
 )
 
@@ -121,3 +123,57 @@ def extract_answer(text):
     except:
         answer = None
     return answer
+
+
+class StopAfterToken(StoppingCriteria):
+    def __init__(self, token_id: int):
+        self.token_id = token_id
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+        return input_ids[0][-1] == self.token_id
+
+
+def get_answer(messages, pipeline, num_beams=None, force_answer=False):
+    assistant_messages = [
+        message
+        for message in range(len(messages))
+        if messages[message]["role"] == "assistant"
+    ]
+
+    for _, assistant_message in enumerate(assistant_messages):
+        if force_answer and _ == len(assistant_messages) - 1:
+            prompt = pipeline.tokenizer.apply_chat_template(
+                messages[:assistant_message]
+                + [{"role": "assistant", "content": "PLACEHOLDER"}],
+                tokenize=False,
+            )
+            prompt = prompt[: prompt.rfind("PLACEHOLDER")] + "```json"
+            stopping_criteria = StoppingCriteriaList(
+                [
+                    StopAfterToken(
+                        pipeline.tokenizer.vocab.get(
+                            "}Ċ", pipeline.tokenizer.vocab["}"]
+                        )
+                    )
+                ]
+            )
+        else:
+            prompt = pipeline.tokenizer.apply_chat_template(
+                messages[:assistant_message], tokenize=False, add_generation_prompt=True
+            )
+            stopping_criteria = None
+
+        response = pipeline(
+            prompt,
+            do_sample=False,
+            num_beams=num_beams,
+            num_return_sequences=1,
+            max_new_tokens=512,
+            temperature=None,
+            top_p=None,
+            stopping_criteria=stopping_criteria,
+        )[0]["generated_text"]
+        response = response[len(prompt) :].strip()
+        messages[assistant_message] = {"role": "assistant", "content": response}
+
+    return extract_answer(response), response
