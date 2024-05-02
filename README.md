@@ -137,7 +137,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
 | deepset/deberta-v3-large-squad2     | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 | Llama 3 8b instruct (base model)    | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
-| - Fine-tuned single-turn 3.7 epochs | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
+| - Fine-tuned single-turn 1.2 epochs | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
