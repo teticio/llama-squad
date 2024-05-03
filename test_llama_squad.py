@@ -2,9 +2,11 @@ import csv
 import json
 import logging
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Optional
 
 import transformers
+import yaml
 from datasets import load_from_disk
 from tqdm import tqdm
 from transformers import HfArgumentParser
@@ -17,7 +19,6 @@ transformers.logging.set_verbosity_error()
 
 @dataclass
 class ScriptArguments:
-    model_name: Optional[str] = field(default="meta-llama/Llama-2-7b-chat-hf")
     tokenizer_name: Optional[str] = field(
         default=None,
     )
@@ -35,16 +36,17 @@ class ScriptArguments:
     num_samples: Optional[int] = field(default=None)
     skip_samples: Optional[int] = field(default=None)
     num_beams: Optional[int] = field(default=1)
-    force_answer: Optional[bool] = field(default=False)
+    force_answer: Optional[bool] = field(default=True)
 
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
+config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 logging.basicConfig(level=logging.DEBUG if script_args.debug else logging.INFO)
 
 model, tokenizer = get_model_and_tokenizer(
-    model_name=script_args.model_name,
+    model_name=config.model_name,
     adapter_name=script_args.adapter_name,
     tokenizer_name=script_args.tokenizer_name,
     quantize=script_args.quantize,
@@ -70,7 +72,7 @@ with open(script_args.output_csv_file, "w") as file:
         ]
     )
 
-    dataset = load_from_disk(script_args.dataset)["test"]
+    dataset = load_from_disk(config.dataset_name)["test"]
     if script_args.shuffle:
         dataset = dataset.shuffle(seed=script_args.seed)
     if script_args.num_samples is not None:

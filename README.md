@@ -61,17 +61,23 @@ We can train the model in this way by creating a custom `DataCollator` as follow
 
 ```python
 class SquadDataCollator(DataCollatorForLanguageModeling):
-    answer_start_token_id = 7521  # "_```"
+    def __init__(self, answer_start_tokens: torch.Tensor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.answer_start_tokens = answer_start_tokens
 
     def __call__(self, examples):
         batch = super().__call__(examples)
 
         # Only apply cross entropy loss to the answer part of the labels
         for idx, label in enumerate(batch["labels"]):
-            answer_end = torch.where(label == -100)[0][0]
-            answer_start = torch.where(label == self.answer_start_token_id)[0][-1]
+            answer_end = torch.where(label == -100)[0]
+            window = label.unfold(0, self.answer_start_tokens.shape[0], 1)
+            answer_start = (
+                (window == self.answer_start_tokens).all(dim=1).nonzero()[-1, 0]
+            )
             label[:answer_start] = -100
-            label[answer_end] = 2
+            if len(answer_end) > 0:
+                label[answer_end[0]] = self.tokenizer.eos_token_id
             batch["labels"][idx] = label
 
         return batch
@@ -79,11 +85,15 @@ class SquadDataCollator(DataCollatorForLanguageModeling):
 
 Explicitly terminating the labels with the end of sequence token (`2`) encourages the model to learn to stop generating tokens after the answer. This has the downside that the model will tend not to provide any reasoning after providing the answer. Nevertheless, we found it was necessary to do this because, past a certain point the the training, the model would start to "obsessively" repeat garbled variations of the answer.
 
+### Blah blah blah
+
 Notice that we include
 ````
 Think step by step and explain your reasoning.
 ````
-in the prompt. It would probably help if we were also able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it in a similar way to how the Alpaca model was trained. One experiment we tried was to simply replace the reasoning with "blah blah blah..." and ensure that the model did not attend those tokens by modifying the `attention_mask`. The hope was that the model would learn to space out the answer due to the relative positional embeddings. However, the results were worse than not including any reasoning at all. Remember that the model generates all the tokens in parallel in the forward pass, because we inject the ground-truth tokens in the input using [teacher forcing](https://towardsdatascience.com/what-is-teacher-forcing-3da6217fed1c). If we were to pass the generation of the previous token as an input to the next token - as is done in generation at inference time - this would mean reverting to a sequential calculation, which would be infeasible. This means that the model is not guided by the blahs, and is likely to go off at a tangent, rather like the encoder models do when generating text as mentioned previously.
+in the prompt. It would probably help if we were also able to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it in a similar way to how the Alpaca model was trained.
+
+Alternatively we can replace the reasoning with `<BLAH><BLAH><BLAH>...` tokens. When I first tried this experiment I didn't obtain good results, as the model appeared to just learn to spit out the these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight and after reading the recent paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226), I realized that the it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). At inference time the generation is conditioned by providing the `<BLAH>` tokens and then the output is extracted. I found it beneficial to also include start of the answer `\n```json` in the prompt, especially early on in the training.
 
 ### Learning Rate
 
@@ -118,7 +128,7 @@ If the answer is not in the context, the answer should be "?". [/INST] ```json
 ``` </s>
 ````
 
-At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower.
+At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower. Again, one could use ChatGPT to provide the intermediate responses (knowing the answer), or `<BLAH>` tokens could be inserted.
 
 ## Results
 
@@ -171,10 +181,18 @@ python create_squad_dataset.py
 
 The training script `train_llama_squad.py` is heavily based on [one](https://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da) provided by `younesbelkada`. You may need to adjust the `per_device_train_batch_size` in order to fit the model in your GPU memory. You should also set the `gradient_accumulation_steps` so that `per_device_train_batch_size * gradient_accumulation_steps` is preserved.
 
+`config.yaml`:
+```yaml
+model_name: meta-llama/Meta-Llama-3-8B-Instruct
+system_prompt: |
+  You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+  If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+reasoning_tokens: 20
+dataset_name: data/squad_v2
+```
+
 ```bash
 python train_llama_squad.py \
---model_name meta-llama/Llama-2-7b-chat-hf \
---dataset_name data/squad_v2 \
 --bf16 \
 --max_seq_length 4096 \
 --per_device_train_batch_size 4 \

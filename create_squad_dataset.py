@@ -1,12 +1,14 @@
 import json
 from dataclasses import dataclass, field
 from textwrap import dedent
+from types import SimpleNamespace
 from typing import Optional
 
+import yaml
 from datasets import DatasetDict, load_dataset
 from transformers import HfArgumentParser
 
-from model import DEFAULT_SYSTEM_PROMPT
+from model import REASONING
 
 
 @dataclass
@@ -15,28 +17,32 @@ class ScriptArguments:
         default="single_turn",
         metadata={"help": "single_turn, multi_turn"},
     )
-    dataset: Optional[str] = field(
-        default="data/squad_v2",
+    validation_ratio: Optional[float] = field(
+        default=0.005,
+        metadata={"help": "Validation ratio"},
+    )
+    seed: Optional[int] = field(
+        default=42,
+        metadata={"help": "Seed for the random number generator"},
     )
 
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
+config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
-SYSTEM_PROMPT = DEFAULT_SYSTEM_PROMPT
 
-
-def get_single_turn_prompt_and_response(item, all_answers=False):
+def get_single_turn_prompt_and_response(item):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
-    answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
+    answers = json.dumps(answers)
 
     return {
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": config.system_prompt},
             {
                 "role": "user",
                 "content": dedent(
@@ -55,7 +61,8 @@ def get_single_turn_prompt_and_response(item, all_answers=False):
             {
                 "role": "assistant",
                 "content": dedent(
-                    f""" \
+                    f"""\
+                    {REASONING}
                     ```json
                     {{
                     "answer": {answers}
@@ -67,17 +74,17 @@ def get_single_turn_prompt_and_response(item, all_answers=False):
     }
 
 
-def get_multi_turn_prompt_and_response(item, all_answers=False):
+def get_multi_turn_prompt_and_response(item):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
-    answers = json.dumps(answers) if all_answers else f'"{answers[0]}"'
+    answers = json.dumps(answers)
 
     return {
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": config.system_prompt},
             {
                 "role": "user",
                 "content": dedent(
@@ -87,7 +94,7 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
                     Question: {question}"""
                 ),
             },
-            {"role": "assistant", "content": ""},
+            {"role": "assistant", "content": REASONING},
             {
                 "role": "user",
                 "content": dedent(
@@ -96,7 +103,7 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
                     """
                 ),
             },
-            {"role": "assistant", "content": ""},
+            {"role": "assistant", "content": REASONING},
             {
                 "role": "user",
                 "content": dedent(
@@ -114,7 +121,8 @@ def get_multi_turn_prompt_and_response(item, all_answers=False):
             {
                 "role": "assistant",
                 "content": dedent(
-                    f""" \
+                    f"""\
+                    {REASONING}
                     ```json
                     {{
                     "answer": {answers}
@@ -132,11 +140,15 @@ instruction = {
 }[script_args.prompt]
 
 squad_dataset = load_dataset("squad_v2")
-train_dataset = squad_dataset["train"].map(instruction)
-print(train_dataset[0])
-test_dataset = squad_dataset["validation"].map(
-    instruction, fn_kwargs={"all_answers": True}
+dataset = squad_dataset["train"].train_test_split(
+    test_size=script_args.validation_ratio,
+    seed=script_args.seed,
 )
-print(test_dataset[0])
-dataset = DatasetDict({"train": train_dataset, "test": test_dataset})
-dataset.save_to_disk(script_args.dataset)
+train_dataset = dataset["train"].map(instruction)
+val_dataset = dataset["test"].map(instruction)
+print(train_dataset[0])
+test_dataset = squad_dataset["validation"].map(instruction)
+dataset = DatasetDict(
+    {"train": train_dataset, "val": val_dataset, "test": test_dataset}
+)
+dataset.save_to_disk(config.dataset_name)

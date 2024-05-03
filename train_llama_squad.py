@@ -1,3 +1,5 @@
+# based on ttps://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da
+
 # coding=utf-8
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
@@ -12,39 +14,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import json
 import os
+import re
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Optional
 
 import torch
+import yaml
 from datasets import load_from_disk
 from peft import LoraConfig
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    HfArgumentParser,
-    TrainingArguments,
-)
-from trl import SFTTrainer
+from transformers import HfArgumentParser, TrainingArguments
 
 from llama_squad import SquadDataCollator
-
-# This example fine-tunes Llama v2 model on Guanace dataset
-# using QLoRA. At the end of the script we perform merging the weights
-# Use it by correctly passing --model_name argument when running the
-# script.
-#
-# Versions used:
-# accelerate == 0.21.0
-# peft == 0.4.0
-# bitsandbytes == 0.40.2
-# transformers == 4.31.0
-# trl == 0.4.7
-
-# For models that have `config.pretraining_tp > 1` install:
-# pip install git+https://github.com/huggingface/transformers.git
+from model import get_model_and_tokenizer, SquadSFTTrainer
 
 
 @dataclass
@@ -56,7 +41,6 @@ class ScriptArguments:
     local_rank: Optional[int] = field(
         default=-1, metadata={"help": "Used for multi-gpu"}
     )
-
     per_device_train_batch_size: Optional[int] = field(default=4)
     per_device_eval_batch_size: Optional[int] = field(default=1)
     gradient_accumulation_steps: Optional[int] = field(default=4)
@@ -67,16 +51,6 @@ class ScriptArguments:
     lora_dropout: Optional[float] = field(default=0.1)
     lora_r: Optional[int] = field(default=64)
     max_seq_length: Optional[int] = field(default=512)
-    model_name: Optional[str] = field(
-        default="meta-llama/Llama-2-7b-hf",
-        metadata={
-            "help": "The model that you want to train from the Hugging Face hub. E.g. gpt2, gpt2-xl, bert, etc."
-        },
-    )
-    dataset_name: Optional[str] = field(
-        default="timdettmers/openassistant-guanaco",
-        metadata={"help": "The preference dataset to use."},
-    )
     use_4bit: Optional[bool] = field(
         default=True,
         metadata={"help": "Activate 4bit precision base model loading"},
@@ -132,6 +106,9 @@ class ScriptArguments:
     max_steps: int = field(
         default=10000, metadata={"help": "How many optimizer update steps to take"}
     )
+    eval_steps: int = field(
+        default=1000, metadata={"help": "How many steps to take before evaluating model"}
+    )
     warmup_ratio: float = field(
         default=0,
         metadata={"help": "Fraction of steps to do a warmup for"},
@@ -163,43 +140,22 @@ class ScriptArguments:
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
+config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 
 def create_and_prepare_model(args):
     compute_dtype = getattr(torch, args.bnb_4bit_compute_dtype)
-
-    bnb_config = BitsAndBytesConfig(
+    model, tokenizer = get_model_and_tokenizer(
+        model_name=config.model_name,
+        quantize=args.use_4bit,
         load_in_4bit=args.use_4bit,
         bnb_4bit_quant_type=args.bnb_4bit_quant_type,
         bnb_4bit_compute_dtype=compute_dtype,
         bnb_4bit_use_double_quant=args.use_nested_quant,
     )
 
-    if compute_dtype == torch.float16 and args.use_4bit:
-        major, _ = torch.cuda.get_device_capability()
-        if major >= 8:
-            print("=" * 80)
-            print(
-                "Your GPU supports bfloat16, you can accelerate training with the argument --bf16"
-            )
-            print("=" * 80)
-
-    # Load the entire model on the GPU 0
-    # switch to `device_map = "auto"` for multi-GPU
-    device_map = "auto"  # {"": 0}
-
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_name,
-        quantization_config=bnb_config,
-        device_map=device_map,
-        use_auth_token=True,
-        trust_remote_code=True,
-    )
-
     # check: https://github.com/huggingface/transformers/pull/24906
     model.config.pretraining_tp = 1
-
-    import re
 
     model_modules = str(model.modules)
     pattern = r"\((\w+)\): Linear"
@@ -220,11 +176,6 @@ def create_and_prepare_model(args):
         task_type="CAUSAL_LM",
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        script_args.model_name, trust_remote_code=True
-    )
-    tokenizer.pad_token = tokenizer.eos_token
-
     return model, peft_config, tokenizer
 
 
@@ -244,26 +195,39 @@ training_arguments = TrainingArguments(
     group_by_length=script_args.group_by_length,
     lr_scheduler_type=script_args.lr_scheduler_type,
     lr_scheduler_kwargs=json.loads(script_args.lr_scheduler_kwargs),
+    evaluation_strategy="steps",
+    eval_steps=script_args.eval_steps,
 )
 
 model, peft_config, tokenizer = create_and_prepare_model(script_args)
 model.config.use_cache = False
-dataset = load_from_disk(script_args.dataset_name)["train"]
+train_dataset = load_from_disk(config.dataset_name)["train"]
+eval_dataset = load_from_disk(config.dataset_name)["val"]
 
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
 answer_start_tokens = torch.tensor(
-    tokenizer.vocab.get("▁```", tokenizer.encode("\n\n```", add_special_tokens=False))
+    tokenizer.vocab.get(
+        "▁```",
+        (
+            tokenizer.encode("\n\n```", add_special_tokens=False)
+            if config.reasoning_tokens == 0
+            else tokenizer.encode("\n```", add_special_tokens=False)
+        ),
+    )
 ).view(-1)
 
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens, tokenizer=tokenizer, mlm=False
 )
 
-trainer = SFTTrainer(
+
+trainer = SquadSFTTrainer(
+    answer_start_tokens=answer_start_tokens,
     model=model,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
     peft_config=peft_config,
     max_seq_length=script_args.max_seq_length,
     tokenizer=tokenizer,

@@ -5,6 +5,7 @@ gradio
 json5
 openai
 peft
+pyyaml
 scipy
 torch
 transformers
