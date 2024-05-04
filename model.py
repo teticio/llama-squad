@@ -22,7 +22,7 @@ from tqdm import tqdm
 from trl import SFTTrainer
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
-REASONING = "".join(["<BLAH>"] * config.reasoning_tokens)
+REASONING = "".join(["<blah>"] * config.reasoning_tokens)
 
 
 def get_model_and_tokenizer(
@@ -58,9 +58,9 @@ def get_model_and_tokenizer(
     )
     tokenizer.pad_token = tokenizer.eos_token
 
-    # add special <BLAH> token
+    # add special <blah> token
     if config.reasoning_tokens > 0:
-        tokenizer.add_special_tokens({"additional_special_tokens": ["<BLAH>"]})
+        tokenizer.add_special_tokens({"additional_special_tokens": ["<blah>"]})
         model.resize_token_embeddings(len(tokenizer))
 
     if adapter_name is not None:

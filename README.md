@@ -95,7 +95,7 @@ Think step by step and explain your reasoning.
 ````
 in the prompt. It would no doubt be beneficial to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it (knowing the answer) in a similar way to how the Alpaca model was trained.
 
-Alternatively we can replace the reasoning with `<BLAH><BLAH><BLAH>...` tokens. When I first tried this experiment I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight and after reading the recent paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) (thanks Thom!), I realized that the it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time the generation is conditioned by providing the `<BLAH>` tokens and then the output is extracted. I found it beneficial to also include start of the answer `\n```json` in the prompt, especially early on in the training.
+Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. When I first tried this experiment I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight and after reading the recent paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) (thanks Thom!), I realized that the it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time the generation is conditioned by providing the `<blah>` tokens and then the output is extracted. I found it beneficial to also include start of the answer `\n```json` in the prompt, especially early on in the training.
 
 ### Learning Rate
 
@@ -130,7 +130,7 @@ If the answer is not in the context, the answer should be "?". [/INST] ```json
 ``` </s>
 ````
 
-At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower. Again, one could use ChatGPT to provide the intermediate responses, or `<BLAH>` tokens could be inserted. The results in the table were produced without including any responses other than the final answer.
+At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower. Again, one could use ChatGPT to provide the intermediate responses, or `<blah>` tokens could be inserted. The results in the table were produced without including any responses other than the final answer.
 
 ## Results
 
