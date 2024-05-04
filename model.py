@@ -256,4 +256,5 @@ class SquadSFTTrainer(SFTTrainer):
             accuracy += 1 if model_answer is not None and model_answer in answers else 0
 
         accuracy /= len(self.eval_dataset)
-        return {"accuracy": accuracy}
+        self.log({"eval_accuracy": accuracy})
+        return {"eval_accuracy": accuracy}
