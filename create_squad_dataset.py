@@ -32,12 +32,14 @@ script_args = parser.parse_args_into_dataclasses()[0]
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 
-def get_single_turn_prompt_and_response(item):
+def get_single_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
+    if not all_answers:
+        answers = answers[0]
     answers = json.dumps(answers)
 
     return {
@@ -74,12 +76,14 @@ def get_single_turn_prompt_and_response(item):
     }
 
 
-def get_multi_turn_prompt_and_response(item):
+def get_multi_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answers = ["?"]
+    if not all_answers:
+        answers = answers[0]
     answers = json.dumps(answers)
 
     return {
@@ -145,9 +149,13 @@ dataset = squad_dataset["train"].train_test_split(
     seed=script_args.seed,
 )
 train_dataset = dataset["train"].map(instruction)
-val_dataset = dataset["test"].map(instruction)
-print(train_dataset[0])
-test_dataset = squad_dataset["validation"].map(instruction)
+val_dataset = dataset["test"].map(instruction, fn_kwargs={"all_answers": True})
+for item in val_dataset:
+    print(item["messages"][-1])
+
+test_dataset = squad_dataset["validation"].map(
+    instruction, fn_kwargs={"all_answers": True}
+)
 dataset = DatasetDict(
     {"train": train_dataset, "val": val_dataset, "test": test_dataset}
 )

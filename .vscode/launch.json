@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
@@ -14,7 +14,7 @@
         },
         {
             "name": "Python: train_llama_squad",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/train_llama_squad.py",
             "env": {
@@ -30,14 +30,14 @@
                 "16",
                 "--max_steps",
                 "10000",
-                "--merge_and_push"
+                "--merge_and_push",
             ],
             "console": "integratedTerminal",
             "justMyCode": false
         },
         {
             "name": "Python: create_squad_dataset",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/create_squad_dataset.py",
             "args": [
@@ -48,12 +48,12 @@
         },
         {
             "name": "Python: test_llama_squad",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
-                "--adapter_name", "results/checkpoint-1000",
-                "--num_samples", "500",
+                "--adapter_name", "results/checkpoint-2000",
+                "--num_samples", "100",
                 "--shuffle", "True",
                 "--seed", "12345",
                 "--force_answer", "True",
@@ -64,7 +64,7 @@
         },
         {
             "name": "Python: test_encoder_squad",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/test_encoder_squad.py",
             "args": [],

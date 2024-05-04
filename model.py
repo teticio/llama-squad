@@ -206,7 +206,10 @@ class SquadSFTTrainer(SFTTrainer):
             input = input[0].to(dtype)
             return (input,)
 
-        accuracy = 0
+        exact_match = 0
+        has_answer = 0
+        has_answer_correct = 0
+        no_answer_correct = 0
         for item in tqdm(self.eval_dataset, desc="Evaluating"):
             input_ids = torch.tensor(item["input_ids"]).to(self.model.device)
             attention_mask = torch.tensor(item["attention_mask"]).to(self.model.device)
@@ -253,8 +256,22 @@ class SquadSFTTrainer(SFTTrainer):
                     output[0, answer_start:], skip_special_tokens=True
                 )
             )
-            accuracy += 1 if model_answer is not None and model_answer in answers else 0
+            correct = 1 if model_answer is not None and model_answer in answers else 0
+            exact_match += correct
+            if answers != ["?"]:
+                has_answer += 1
+                has_answer_correct += correct
+            else:
+                no_answer_correct += correct
 
-        accuracy /= len(self.eval_dataset)
-        self.log({"eval_accuracy": accuracy})
-        return {"eval_accuracy": accuracy}
+        exact_match /= len(self.eval_dataset)
+        has_answer_correct /= has_answer
+        no_answer_correct /= len(self.eval_dataset) - has_answer
+        metrics = {
+            "eval_exact_match": exact_match,
+            "eval_has_answer_correct": has_answer_correct,
+            "eval_no_answer_correct": no_answer_correct,
+        }
+
+        self.log(metrics)
+        return metrics
