@@ -78,7 +78,7 @@ with open(script_args.output_csv_file, "w") as file:
     if script_args.num_samples is not None:
         dataset = dataset.select(range(script_args.num_samples))
 
-    for _, messages in tqdm(enumerate(dataset["messages"])):
+    for _, messages in enumerate(tqdm(dataset["messages"])):
         if script_args.skip_samples is not None and _ < script_args.skip_samples:
             continue
 
