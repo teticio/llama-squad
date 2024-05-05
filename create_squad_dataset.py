@@ -150,9 +150,6 @@ dataset = squad_dataset["train"].train_test_split(
 )
 train_dataset = dataset["train"].map(instruction)
 val_dataset = dataset["test"].map(instruction, fn_kwargs={"all_answers": True})
-for item in val_dataset:
-    print(item["messages"][-1])
-
 test_dataset = squad_dataset["validation"].map(
     instruction, fn_kwargs={"all_answers": True}
 )
