@@ -3,7 +3,7 @@
 from functools import partial
 from threading import Thread
 from types import SimpleNamespace
-from typing import Iterator, Optional
+from typing import Dict, Iterator, Optional
 
 import json5
 import torch
@@ -22,7 +22,36 @@ from tqdm import tqdm
 from trl import SFTTrainer
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
+# Llama 3 has several <|reserved_special_token_...|> that could be use instead
 REASONING = "".join(["<blah>"] * config.reasoning_tokens)
+
+
+# from https://github.com/artidoro/qlora/blob/7f4e95a68dc076bea9b3a413d2b512eca6d004e5/qlora.py#L425
+def smart_tokenizer_and_embedding_resize(
+    special_tokens_dict: Dict,
+    tokenizer: AutoTokenizer,
+    model: AutoModelForCausalLM,
+):
+    """Resize tokenizer and embedding.
+
+    Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
+    """
+    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    model.resize_token_embeddings(len(tokenizer))
+
+    if num_new_tokens > 0:
+        input_embeddings_data = model.get_input_embeddings().weight.data
+        output_embeddings_data = model.get_output_embeddings().weight.data
+
+        input_embeddings_avg = input_embeddings_data[:-num_new_tokens].mean(
+            dim=0, keepdim=True
+        )
+        output_embeddings_avg = output_embeddings_data[:-num_new_tokens].mean(
+            dim=0, keepdim=True
+        )
+
+        input_embeddings_data[-num_new_tokens:] = input_embeddings_avg
+        output_embeddings_data[-num_new_tokens:] = output_embeddings_avg
 
 
 def get_model_and_tokenizer(
@@ -60,8 +89,11 @@ def get_model_and_tokenizer(
 
     # add special <blah> token
     if config.reasoning_tokens > 0:
-        tokenizer.add_special_tokens({"additional_special_tokens": ["<blah>"]})
-        model.resize_token_embeddings(len(tokenizer))
+        smart_tokenizer_and_embedding_resize(
+            special_tokens_dict={"additional_special_tokens": ["<blah>"]},
+            tokenizer=tokenizer,
+            model=model,
+        )
 
     if adapter_name is not None:
         model = PeftModel.from_pretrained(model, adapter_name, device_map="auto")
