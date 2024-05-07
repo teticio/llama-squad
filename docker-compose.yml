@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  llama-squad:
+    build: .
+    volumes:
+      - .:/app
+      - $HOME/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia

@@ -11,3 +11,4 @@ torch
 tqdm
 transformers
 trl
+wandb

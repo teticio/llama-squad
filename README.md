@@ -150,6 +150,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | deepset/deberta-v3-large-squad2     | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
 | Llama 3 8b instruct (base model)    | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
 | - Fine-tuned single-turn 1.2 epochs | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
+| - 100 `<blah>`s 1.2 epochs          | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
@@ -203,6 +204,13 @@ python train_llama_squad.py \
 --merge_and_push \
 --save_steps 1000 \
 --learning_rate=2e-7
+```
+
+Alternatively, to ensure you are using a reproducible environment, you can train in Docker with
+
+```bash
+docker-compose run llama-squad python train_llama_squad.py \
+...
 ```
 
 ### Evaluate model

@@ -1,0 +1,14 @@
+accelerate==0.29.3
+bitsandbytes==0.42.0
+datasets==2.19.0
+gradio==4.15.0
+json5==0.9.14
+openai==1.23.2
+peft==0.10.0
+pyyaml==6.0.1
+scipy==1.11.4
+torch==2.1.2
+tqdm==4.66.1
+transformers==4.40.0
+trl==0.8.6
+wandb==0.16.2
