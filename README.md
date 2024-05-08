@@ -151,6 +151,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Llama 3 8b instruct (base model)    | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
 | - Fine-tuned single-turn 1.2 epochs | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
 | - 100 `<blah>`s 1.2 epochs          | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
+| - 25 `<blah>`s 1.2 epochs           | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
