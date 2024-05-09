@@ -222,7 +222,7 @@ This generates a CSV file `results/results.csv` which you can summarize with
 python summarize_results.py
 ```
 
-To see how the model performs on the benchmarks that are tracked in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard) clone [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness.git) in the same directory as `llama-squad` and run
+To see how the model performs on the benchmarks that are tracked in the [Open LLM Leaderboard](https://huggingface.co/spaces/HuggingFaceH4/open_llm_leaderboard) clone [`lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness.git) in the same directory as `llama-squad` and run
 
 ```bash
 ./eval.sh <path_to_base_model> results/final_checkpoints
