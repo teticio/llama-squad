@@ -29,7 +29,7 @@ from peft import LoraConfig
 from transformers import HfArgumentParser, TrainingArguments
 
 from llama_squad import SquadDataCollator
-from model import get_model_and_tokenizer, SquadSFTTrainer
+from model import SquadSFTTrainer, get_model_and_tokenizer
 
 
 @dataclass
@@ -107,7 +107,8 @@ class ScriptArguments:
         default=10000, metadata={"help": "How many optimizer update steps to take"}
     )
     eval_steps: int = field(
-        default=1000, metadata={"help": "How many steps to take before evaluating model"}
+        default=1000,
+        metadata={"help": "How many steps to take before evaluating model"},
     )
     warmup_ratio: float = field(
         default=0,
@@ -207,24 +208,36 @@ eval_dataset = load_from_disk(config.dataset_name)["val"]
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
-answer_start_tokens = torch.tensor(
-    tokenizer.vocab.get(
-        "▁```",
-        (
-            tokenizer.encode("\n\n```", add_special_tokens=False)
-            if config.reasoning_tokens == 0
-            else tokenizer.encode("\n```", add_special_tokens=False)
-        ),
+blah_token = tokenizer.vocab.get("<blah>")
+
+if "Llama-3" in tokenizer.name_or_path:
+    answer_start_tokens = torch.tensor(
+        tokenizer.encode(
+            "<|start_header_id|>assistant<|end_header_id|>\n\n",
+            add_special_tokens=False,
+        )
     )
-).view(-1)
+    answer_end_tokens = torch.tensor(
+        tokenizer.encode("<|eot_id|>", add_special_tokens=False)
+    )
+else:
+    answer_start_tokens = torch.tensor(
+        tokenizer.encode("[/INST] ", add_special_tokens=False)
+    )
+    answer_end_tokens = torch.tensor([-100])
 
 data_collator = SquadDataCollator(
-    answer_start_tokens=answer_start_tokens, tokenizer=tokenizer, mlm=False
+    answer_start_tokens=answer_start_tokens,
+    answer_end_tokens=answer_end_tokens,
+    blah_token=blah_token,
+    tokenizer=tokenizer,
+    mlm=False,
 )
-
 
 trainer = SquadSFTTrainer(
     answer_start_tokens=answer_start_tokens,
+    answer_end_tokens=answer_end_tokens,
+    reasoning_tokens=config.reasoning_tokens,
     model=model,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,

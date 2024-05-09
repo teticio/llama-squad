@@ -32,60 +32,39 @@ While ChatGPT has been fine-tuned with RLHF (Reinforcement Learning with Human F
 
 The idea here is to use the excellent [TRL](https://github.com/lvwerra/trl) library from Hugging Face's Leandro von Werra to SFT a model on the SQuAD v2 task. The current SQuAD v2 [SOTA](https://paperswithcode.com/sota/question-answering-on-squad20) is an Exact Match for 90.9% of the test set. The dataset consists of contexts, questions and answers - which are verbatim extracts from the contexts. In some cases, there *is* no answer to the question in the context, and so the answer is an empty string. Foundation models like ChatGPT may excel in "reasoning", but it can be challenging to ensure that the answers are taken word-for-word from the context. In the case that there is no answer, there is an additional risk that they will provide an answer from memory or a "hallucination". There is, of course, also a risk that the SQuAD v2 test dataset was used directly or indirectly as part of the training set of the foundation model.
 
-We create a dataset according to the template that was used to train the chat version of Llama 2, with a system prompt enclosed by `<<SYS>>` and `<</SYS>>` tokens followed by an instruction terminated by `[/INST]` and finally the ground truth answer (as a continuation of the prompt). (Note that the template for Llama 3 is different.) There are several possible answers for each question in the SQuAD v2 dataset
+We create a dataset of chats, which can be converted easily into a prompt with `tokenizer.apply_chat_template`, for example:
 
-````
-<s>[INST] <<SYS>>                                                                                                                                     
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
-If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
-<</SYS>>
-
-Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
-```json
-{
-  "answer": ...
-}
+```yaml
+messages:
+- role: "system"
+  content: |
+    You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+    If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
+- role: "user"
+  content: |
+    Extract from the following context the minimal span word for word that best answers the question. Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+    ```json
+    {
+      "answer": ...
+    }
+    ```
+    If the answer is not in the context, the answer should be "?".
+    Context: Beyoncé Giselle Knowles-Carter (/biːˈjɒnseɪ/ bee-YON-say) (born September 4, 1981) is an American singer, songwriter, record producer and actress. Born and raised in Houston, Texas, she performed in various singing and dancing competitions as a child, and rose to fame in the late 1990s as lead singer of R&B girl-group Destiny's Child. Managed by her father, Mathew Knowles, the group became one of the world's best-selling girl groups of all time. Their hiatus saw the release of Beyoncé's debut album, Dangerously in Love (2003), which established her as a solo artist worldwide, earned five Grammy Awards and featured the Billboard Hot 100 number-one singles "Crazy in Love" and "Baby Boy".
+    Question: When did Beyonce start becoming popular?
+- role: "assistant"
+  content: |
+    ```json
+    {
+      "answer": "in the late 1990s"
+    }
+    ```
 ```
-If the answer is not in the context, the answer should be "?".
-Context: Beyoncé Giselle Knowles-Carter (/biːˈjɒnseɪ/ bee-YON-say) (born September 4, 1981) is an American singer, songwriter, record producer and actress. Born and raised in Houston, Texas, she performed in various singing and dancing competitions as a child, and rose to fame in the late 1990s as lead singer of R&B girl-group Destiny's Child. Managed by her father, Mathew Knowles, the group became one of the world's best-selling girl groups of all time. Their hiatus saw the release of Beyoncé's debut album, Dangerously in Love (2003), which established her as a solo artist worldwide, earned five Grammy Awards and featured the Billboard Hot 100 number-one singles "Crazy in Love" and "Baby Boy".
-Question: When did Beyonce start becoming popular? [/INST] ```json
-{
-  "answer": "in the late 1990s"
-}
-``` </s>
-````
 
 ### Masked Causal Language Modeling
 
-We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only the tokens in the JSON response.
+We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only apply to the tokens in each of the assistant responses.
 
-We can train the model in this way by creating a custom `DataCollator` as follows:
-
-```python
-class SquadDataCollator(DataCollatorForLanguageModeling):
-    def __init__(self, answer_start_tokens: torch.Tensor, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.answer_start_tokens = answer_start_tokens
-
-    def __call__(self, examples):
-        batch = super().__call__(examples)
-
-        # Only apply cross entropy loss to the answer part of the labels
-        for idx, label in enumerate(batch["labels"]):
-            answer_end = torch.where(label == -100)[0]
-            window = label.unfold(0, self.answer_start_tokens.shape[0], 1)
-            answer_start = (
-                (window == self.answer_start_tokens).all(dim=1).nonzero()[-1, 0]
-            )
-            label[:answer_start] = -100
-            if len(answer_end) > 0:
-                label[answer_end[0]] = self.tokenizer.eos_token_id
-            batch["labels"][idx] = label
-
-        return batch
-```
-
-Explicitly terminating the labels with the end of sequence token encourages the model to learn to stop generating tokens after the answer. This has the downside that the model will tend not to provide any reasoning after providing the answer. Nevertheless, we found it was necessary to do this because, past a certain point the the training, the model would start to "obsessively" repeat garbled variations of the answer.
+We can train the model in this way by creating a custom `DataCollator` (see [`llama_squad.py`](llama_squad.py)) which sets the target tokens to which we do not want to apply cross entropy loss to `-100` (a special value in Hugging Face's `transformers` package). To verify which parts of the prompt the cross entropy loss will be applied to, you can run `python test_data_collator.py` and these sections will be coloured green.
 
 ### Blah blah blah
 
@@ -93,44 +72,60 @@ Notice that we include
 ````
 Think step by step and explain your reasoning.
 ````
-in the prompt. It would no doubt be beneficial to include the reasoning in the training data. As we do not have a ground-truth for it, one approach would be to use ChatGPT to generate it (knowing the answer) in a similar way to how the Alpaca model was trained.
+in the prompt. It would no doubt be beneficial to include the reasoning in the training data. As we do not have a ground-truth for the reasoning, one approach would be to use ChatGPT to generate it (knowing the answer) in a similar way to how the Alpaca model was trained.
 
-Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. When I first tried this experiment I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight, and after reading the recent paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) (thanks Thom!), I realized that the it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time, the output corresponding to these tokens is ignored and not fed back into the model auto-regressively, as it need not make any linguistic sense. I found it beneficial to also include start of the answer `\n```json` in the prompt, especially early on in the training. However, the results from the paper point to the importance of not just fine-tuning but pre-training the model with the `<blah>` tokens (or using their nomenclature, `<pause>` tokens); we are only doing LORA fine-tuning.
+Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. When I tried this experiment in July 2023, I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight, and after reading the paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) first published in October 2023 (thanks Thom!), I realized that it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time, the output corresponding to these tokens is ignored and not fed back into the model auto-regressively, as it need not make any linguistic sense. I found it helped to also include start of the answer `\n```json` in the prompt, especially early on in the training. However, the results from the paper point to the importance of not just fine-tuning but pre-training the model with the `<blah>` tokens (or using their nomenclature, `<pause>` tokens); we are only doing LORA fine-tuning. During training, of course, we do not apply cross entropy loss to the outputs corresponding to these tokens.
+
+### Multi-turn prompt
+
+It can be interesting to break the problem into explicit steps, taking advantage of the fact that these models were pre-trained with a chat format. For the SQuAD task in particular, we can first of all try to determine whether the context provides an answer to the question before actually attempting to answer the question.
+
+```yaml
+messages:
+- role: system
+  content: ...
+- role: user
+- content: |
+    Does the the following context contain enough information to be able to answer the question? Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+    ```json
+    {
+      "answer": ... # "yes" or "no"
+    }
+    ```
+    Context: ...
+    Question: ...
+- role: assistant
+  content: |
+    ```json
+    {
+      "answer": ...
+    }
+    ```
+- role: user
+- content: |
+    If the question has an answer in the context, extract the minimal span word for word from the context that best answers the question, otherwise the answer should be "?". Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+    ```json
+    {  
+      "answer": ...
+    }
+    ```
+- role: assistant
+  content: |
+    ```json
+    {
+      "answer": ...
+    }
+    ```
+  role: assistant
+```
 
 ### Learning Rate
 
-The first experiment was performed with a learning rate of `2e-4`. The model quickly learned to respond reasonably well to the task, but it just as quickly completely forgot how to speak English. In order to be able to train over the full training set without catastrophic forgetting, we set the learning rate to `2e-7`. This was selected, somewhat heuristically, such that the "elbow" in the convergence graph coincided approximately with one epoch.
+The first experiment was performed with a learning rate of `2e-4`. The model quickly learned to respond reasonably well to the task, but it just as quickly completely forgot how to speak English. In order to be able to train over the full training set without catastrophic forgetting, we set the learning rate to `2e-7`. This was selected, somewhat heuristically, such that the "elbow" in the convergence graph coincided approximately with one epoch. With Llama 3 we found it necessary to use a larger learning rate `1e-6` with a warmup, to avoid the loss getting stuck at a higher value.
 
 ### LORA rank
 
 LORA works by inserting [low rank](https://web.stanford.edu/class/cs168/l/l9.pdf) trainable weight matrices between layers, while freezing all the other weights. Lower rank matrices can be compressed into fewer parameters but are less expressive. We tried ranks of 16, 64 and 512 but didn't notice any significant difference in performance, so we settled on 64.
-
-### Multi-turn prompt
-
-We thought it might be possible to improve results by breaking the task down into stages using a multi-turn chat prompt of the form:
-
-````
-<s>[INST] <<SYS>>
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
-If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.
-<</SYS>>
-
-Use the following context to answer the question. Think step by step and explain your reasoning.
-Context: The Normans (Norman: Nourmands; French: Normands; Latin: Normanni) were the people who in the 10th and 11th centuries gave their name to Normandy, a region in France. They were descended from Norse ("Norman" comes from "Norseman") raiders and pirates from Denmark, Iceland and Norway who, under their leader Rollo, agreed to swear fealty to King Charles III of West Francia. Through generations of assimilation and mixing with the native Frankish and Roman-Gaulish populations, their descendants would gradually merge with the Carolingian-based cultures of West Francia. The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century, and it continued to evolve over the succeeding centuries.
-Question: In what country is Normandy located? [/INST]  </s><s>[INST] Extract the minimal span word for word from the context that best answers the question. [/INST]  </s><s>[INST] Now give the answer in JSON format as follows:
-```json
-{
-  "answer": ...
-}
-```
-If the answer is not in the context, the answer should be "?". [/INST] ```json
-{
-  "answer": "France"
-}
-``` </s>
-````
-
-At inference time, the model is called instruction by instruction, and the model's responses are added to the prompt. This of course makes inference almost three times slower. Again, one could use ChatGPT to provide the intermediate responses, or `<blah>` tokens could be inserted. The results in the table were produced without including any responses other than the final answer.
 
 ## Results
 
@@ -139,11 +134,11 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
 | ----------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
 | Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
-| - [Fine-tuned multi-turn 1.2 epochs*](https://wandb.ai/teticio/huggingface/runs/cqe14jjr) | 96.40%       | 25.70%        | 26.66%              | 10.47%              | 40.16%               |
+     |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
-| - Fine-tuned single-turn 3.7 epochs | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
-| - Fine-tuned single-turn 8.0 epochs 1 beam | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
-| - Fine-tuned single-turn 8.0 epochs 10 beams | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
+| - 3.7 epochs                        | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
+| - 8.0 epochs 1 beam                 | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
+| - 8.0 epochs 10 beams               | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
 | Llama 2 70b chat (quantized)        | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |

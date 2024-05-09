@@ -1,8 +1,9 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
-import json
 import random
+import yaml
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Iterator, Optional
 
 import gradio as gr
@@ -12,7 +13,6 @@ from transformers import HfArgumentParser
 
 from create_squad_dataset import get_single_turn_prompt_and_response
 from model import (
-    DEFAULT_SYSTEM_PROMPT,
     get_input_token_length,
     get_model_and_tokenizer,
     run,
@@ -21,10 +21,6 @@ from model import (
 
 @dataclass
 class ScriptArguments:
-    model_name: Optional[str] = field(default="meta-llama/Llama-2-7b-chat-hf")
-    tokenizer_name: Optional[str] = field(
-        default=None,
-    )
     adapter_name: Optional[str] = field(
         default=None,
     )
@@ -33,6 +29,8 @@ class ScriptArguments:
 
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
+
+config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 MAX_MAX_NEW_TOKENS = 2048
 DEFAULT_MAX_NEW_TOKENS = 1024
@@ -43,7 +41,7 @@ DESCRIPTION = f"""
 
 ![LLaMA SQuAD](https://github.com/teticio/llama-squad/blob/main/llama_squad.png?raw=true)
 
-#### Base model: {script_args.model_name}
+#### Base model: {config.model_name}
 #### Adapter checkpoints: {script_args.adapter_name}
 #### Choose a random question, press submit and then see if the answer is one of the correct ones below. You can then ask it to "Please explain your reasoning".
 """
@@ -126,9 +124,8 @@ def get_random_question_and_answers():
 
 
 model, tokenizer = get_model_and_tokenizer(
-    model_name=script_args.model_name,
+    model_name=config.model_name,
     adapter_name=script_args.adapter_name,
-    tokenizer_name=script_args.tokenizer_name,
     quantize=script_args.quantize,
 )
 
@@ -164,7 +161,7 @@ with gr.Blocks(css="style.css") as demo:
 
     with gr.Accordion(label="Advanced options", open=False):
         system_prompt = gr.Textbox(
-            label="System prompt", value=DEFAULT_SYSTEM_PROMPT, lines=6
+            label="System prompt", value=config.system_prompt, lines=6
         )
         max_new_tokens = gr.Slider(
             label="Max new tokens",

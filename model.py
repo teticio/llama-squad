@@ -6,10 +6,11 @@ from types import SimpleNamespace
 from typing import Dict, Iterator, Optional
 
 import json5
+import peft.tuners.lora.layer as lora_layer
 import torch
 import yaml
 from peft import PeftModel
-import peft.tuners.lora.layer as lora_layer
+from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -18,7 +19,6 @@ from transformers import (
     StoppingCriteriaList,
     TextIteratorStreamer,
 )
-from tqdm import tqdm
 from trl import SFTTrainer
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
@@ -162,7 +162,8 @@ def run(
 
 
 def extract_answer(text):
-    text = text[text.find("{") : text.rfind("}") + 1]
+    text = text[text.find("{") :]
+    text = text[: text.find("}") + 1]
     try:
         # JSON5 is a little less picky than JSON
         answer = json5.loads(text)["answer"]
@@ -171,15 +172,16 @@ def extract_answer(text):
     return answer
 
 
-class StopAfterToken(StoppingCriteria):
-    def __init__(self, token_id: int):
-        self.token_id = token_id
+class StopAfterTokens(StoppingCriteria):
+    def __init__(self, tokens: int):
+        self.tokens = torch.tensor(tokens)
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
-        return input_ids[0][-1] == self.token_id
+        self.tokens = self.tokens.to(input_ids.device)
+        return input_ids[0][-len(self.tokens)] == self.tokens
 
 
-def get_answer(messages, pipeline, num_beams=None, force_answer=False):
+def get_answer(messages, pipeline, num_beams=None, force_answer=True):
     assistant_messages = [
         message
         for message in range(len(messages))
@@ -187,23 +189,27 @@ def get_answer(messages, pipeline, num_beams=None, force_answer=False):
     ]
 
     for _, assistant_message in enumerate(assistant_messages):
-        if force_answer and _ == len(assistant_messages) - 1:
+        if force_answer:
+            force = f"{REASONING}\n```json"
             prompt = pipeline.tokenizer.apply_chat_template(
                 messages[:assistant_message]
                 + [{"role": "assistant", "content": "PLACEHOLDER"}],
                 tokenize=False,
             )
-            prompt = prompt[: prompt.rfind("PLACEHOLDER")] + f"{REASONING}\n```json"
+            prompt = prompt[: prompt.rfind("PLACEHOLDER")] + force
             stopping_criteria = StoppingCriteriaList(
                 [
-                    StopAfterToken(
-                        pipeline.tokenizer.vocab.get(
-                            "}Ċ", pipeline.tokenizer.vocab["}"]
-                        )
+                    StopAfterTokens(
+                        [
+                            pipeline.tokenizer.vocab.get(
+                                "}Ċ", pipeline.tokenizer.vocab["}"]
+                            )
+                        ]
                     )
                 ]
             )
         else:
+            force = ""
             prompt = pipeline.tokenizer.apply_chat_template(
                 messages[:assistant_message], tokenize=False, add_generation_prompt=True
             )
@@ -220,74 +226,101 @@ def get_answer(messages, pipeline, num_beams=None, force_answer=False):
             stopping_criteria=stopping_criteria,
         )[0]["generated_text"]
         response = response[len(prompt) :].strip()
-        messages[assistant_message] = {"role": "assistant", "content": response}
+        messages[assistant_message] = {"role": "assistant", "content": force + response}
 
     return extract_answer(response), response
 
 
 class SquadSFTTrainer(SFTTrainer):
-    def __init__(self, answer_start_tokens, *args, **kwargs):
+    def __init__(
+        self,
+        answer_start_tokens: torch.Tensor,
+        answer_end_tokens: torch.Tensor,
+        reasoning_tokens: int,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.answer_start_tokens = answer_start_tokens
+        self.answer_end_tokens = answer_end_tokens
+        self.reasoning_tokens = reasoning_tokens
         self.stopping_criteria = StoppingCriteriaList(
-            [StopAfterToken(self.tokenizer.vocab.get("}Ċ", self.tokenizer.vocab["}"]))]
+            [StopAfterTokens(self.answer_end_tokens)]
         )
 
     def evaluate(self, **kwargs):
-        def cast_hook(dtype, module, input):
-            input = input[0].to(dtype)
-            return (input,)
+        def cast_hook(dtype, module, inputs):
+            return (inputs[0].to(dtype),)
+
+        # NFI why this is necessary here but not during training
+        hook_handles = []
+        for _, module in self.model.named_modules():
+            if isinstance(module, lora_layer.Linear):
+                hook_handles.append(
+                    module.register_forward_pre_hook(
+                        partial(cast_hook, self.model.dtype)
+                    )
+                )
 
         exact_match = 0
         has_answer = 0
         has_answer_correct = 0
         no_answer_correct = 0
+        answer_start_tokens = self.answer_start_tokens.to(self.model.device)
+        answer_end_tokens = self.answer_end_tokens.to(self.model.device)
         for item in tqdm(self.eval_dataset, desc="Evaluating"):
             input_ids = torch.tensor(item["input_ids"]).to(self.model.device)
-            attention_mask = torch.tensor(item["attention_mask"]).to(self.model.device)
-            answer_start_tokens = self.answer_start_tokens.to(self.model.device)
             window = input_ids.unfold(0, answer_start_tokens.shape[0], 1)
-            answer_start = (window == answer_start_tokens).all(dim=1).nonzero()[-1, 0]
-            answers = extract_answer(
-                self.tokenizer.decode(
-                    item["input_ids"][answer_start:], skip_special_tokens=True
-                )
+            answer_starts = (
+                (window == answer_start_tokens).all(dim=1).nonzero()[:, 0]
+                + answer_start_tokens.shape[0]
+                + self.reasoning_tokens
+                + 1
             )
+            window = input_ids.unfold(0, answer_end_tokens.shape[0], 1)
+            answer_ends = (window == answer_end_tokens).all(dim=1).nonzero()[
+                :, 0
+            ] + answer_end_tokens.shape[0]
 
-            # NFI why this is necessary here but not during training
-            hook_handles = []
-            for _, module in self.model.named_modules():
-                if isinstance(module, lora_layer.Linear):
-                    hook_handles.append(
-                        module.register_forward_pre_hook(
-                            partial(cast_hook, self.model.dtype)
-                        )
+            offset = 0
+            for answer_start in answer_starts:
+                answer_start = answer_start + offset
+                answer_end = answer_ends[answer_ends > answer_start][0] + offset
+
+                answers = extract_answer(
+                    self.tokenizer.decode(
+                        item["input_ids"][answer_start:], skip_special_tokens=True
                     )
-
-            output = self.model.generate(
-                input_ids=input_ids[
-                    : answer_start + len(self.answer_start_tokens)
-                ].unsqueeze(0),
-                attention_mask=attention_mask[
-                    : answer_start + len(self.answer_start_tokens)
-                ].unsqueeze(0),
-                do_sample=False,
-                num_return_sequences=1,
-                max_new_tokens=512,
-                temperature=None,
-                top_p=None,
-                stopping_criteria=self.stopping_criteria,
-                pad_token_id=self.tokenizer.pad_token_id,
-            )
-
-            for hook_handle in hook_handles:
-                hook_handle.remove()
-
-            model_answer = extract_answer(
-                self.tokenizer.decode(
-                    output[0, answer_start:], skip_special_tokens=True
                 )
-            )
+
+                output = self.model.generate(
+                    input_ids=input_ids[:answer_start].unsqueeze(0),
+                    attention_mask=torch.ones_like(input_ids[:answer_start]).unsqueeze(
+                        0
+                    ),
+                    do_sample=False,
+                    num_return_sequences=1,
+                    max_new_tokens=512,
+                    temperature=None,
+                    top_p=None,
+                    stopping_criteria=self.stopping_criteria,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                )
+
+                model_answer = extract_answer(
+                    self.tokenizer.decode(
+                        output[0, answer_start - 1 :], skip_special_tokens=True
+                    )
+                )
+                input_ids = torch.concat(
+                    [
+                        input_ids[:answer_start],
+                        output[0, answer_start:],
+                        input_ids[answer_end:],
+                    ]
+                )
+                offset += answer_end - output.shape[1]
+
             correct = 1 if model_answer is not None and model_answer in answers else 0
             exact_match += correct
             if answers != ["?"]:
@@ -304,6 +337,9 @@ class SquadSFTTrainer(SFTTrainer):
             "eval_has_answer_correct": has_answer_correct,
             "eval_no_answer_correct": no_answer_correct,
         }
+
+        for hook_handle in hook_handles:
+            hook_handle.remove()
 
         self.log(metrics)
         return metrics
