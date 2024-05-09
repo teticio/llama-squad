@@ -134,7 +134,6 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
 | ----------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
 | Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
-     |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
 | - 3.7 epochs                        | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
 | - 8.0 epochs 1 beam                 | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
