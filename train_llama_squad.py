@@ -208,8 +208,6 @@ eval_dataset = load_from_disk(config.dataset_name)["val"]
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
-blah_token = tokenizer.vocab.get("<blah>")
-
 if "Llama-3" in tokenizer.name_or_path:
     answer_start_tokens = torch.tensor(
         tokenizer.encode(
@@ -217,16 +215,12 @@ if "Llama-3" in tokenizer.name_or_path:
             add_special_tokens=False,
         )
     )
-    answer_end_tokens = torch.tensor(
-        tokenizer.encode("<|eot_id|>", add_special_tokens=False)
-    )
-    if script_args.resume_from_checkpoint:  # Patch
-        answer_end_tokens = torch.tensor([-100])
 else:
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
-    answer_end_tokens = torch.tensor([-100])
+answer_end_tokens = torch.tensor([-100])
+blah_token = tokenizer.vocab.get("<blah>")
 
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,
