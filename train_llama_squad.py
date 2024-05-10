@@ -220,6 +220,8 @@ if "Llama-3" in tokenizer.name_or_path:
     answer_end_tokens = torch.tensor(
         tokenizer.encode("<|eot_id|>", add_special_tokens=False)
     )
+    if script_args.resume_from_checkpoint:  # Patch
+        answer_end_tokens = torch.tensor([-100])
 else:
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)

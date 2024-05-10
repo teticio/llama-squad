@@ -9,6 +9,4 @@ python3 train_llama_squad.py \
 --save_steps 1000 \
 --lr_scheduler_type=cosine \
 --learning_rate=1e-6 \
---warmup_ratio=0.03 \
-# --learning_rate=5e-7 \
-# --warmup_ratio=0.15 \
+--warmup_ratio=0.03
