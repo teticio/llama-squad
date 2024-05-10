@@ -29,18 +29,14 @@ if "Llama-3" in tokenizer.name_or_path:
             add_special_tokens=False,
         )
     )
-    answer_end_tokens = torch.tensor(
-        tokenizer.encode("<|eot_id|>", add_special_tokens=False)
-    )
 else:
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
-    answer_end_tokens = torch.tensor([-100])
 
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,
-    answer_end_tokens=answer_end_tokens,
+    answer_end_tokens=torch.tensor([-100]),
     blah_token=blah_token,
     tokenizer=tokenizer,
     mlm=False,

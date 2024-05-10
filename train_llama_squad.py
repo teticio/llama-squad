@@ -208,6 +208,8 @@ eval_dataset = load_from_disk(config.dataset_name)["val"]
 # Fix weird overflow issue with fp16 training
 tokenizer.padding_side = "right"
 
+blah_token = tokenizer.vocab.get("<blah>")
+
 if "Llama-3" in tokenizer.name_or_path:
     answer_start_tokens = torch.tensor(
         tokenizer.encode(
@@ -215,16 +217,21 @@ if "Llama-3" in tokenizer.name_or_path:
             add_special_tokens=False,
         )
     )
+    answer_end_tokens = torch.tensor(
+        tokenizer.encode("<|eot_id|>", add_special_tokens=False)
+    )
+
 else:
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
-answer_end_tokens = torch.tensor([-100])
-blah_token = tokenizer.vocab.get("<blah>")
+    answer_end_tokens = torch.tensor(
+        tokenizer.encode("</s>", add_special_tokens=False)
+    )
 
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,
-    answer_end_tokens=answer_end_tokens,
+    answer_end_tokens=torch.tensor([-100]),  # Hugging Face sets the end token to -100
     blah_token=blah_token,
     tokenizer=tokenizer,
     mlm=False,
