@@ -225,9 +225,7 @@ else:
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
-    answer_end_tokens = torch.tensor(
-        tokenizer.encode("</s>", add_special_tokens=False)
-    )
+    answer_end_tokens = torch.tensor(tokenizer.encode("</s>", add_special_tokens=False))
 
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,

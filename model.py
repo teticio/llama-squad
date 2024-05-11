@@ -1,5 +1,6 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
+import logging
 from functools import partial
 from threading import Thread
 from types import SimpleNamespace
@@ -20,6 +21,11 @@ from transformers import (
     TextIteratorStreamer,
 )
 from trl import SFTTrainer
+
+handler = logging.StreamHandler()
+logger = logging.getLogger()
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 # Llama 3 has several <|reserved_special_token_...|> that could be use instead
@@ -83,7 +89,7 @@ def get_model_and_tokenizer(
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_name if tokenizer_name else model_name, trust_remote_code=True
+        tokenizer_name if tokenizer_name else model_name, trust_remote_code=True, use_fast=True
     )
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -321,6 +327,9 @@ class SquadSFTTrainer(SFTTrainer):
                 )
                 offset += answer_end - output.shape[1]
 
+            if answers is None:
+                logger.warn("Answer not found in prompt, skipping...")
+                continue
             correct = 1 if model_answer is not None and model_answer in answers else 0
             exact_match += correct
             if answers != ["?"]:
