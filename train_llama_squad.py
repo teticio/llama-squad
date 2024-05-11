@@ -205,7 +205,7 @@ model.config.use_cache = False
 train_dataset = load_from_disk(config.dataset_name)["train"]
 eval_dataset = load_from_disk(config.dataset_name)["val"]
 
-# Fix weird overflow issue with fp16 training
+# Fix weird overflow issue with fp16 training. (Is this still necessary?)
 tokenizer.padding_side = "right"
 
 blah_token = tokenizer.vocab.get("<blah>")

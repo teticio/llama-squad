@@ -267,6 +267,8 @@ class SquadSFTTrainer(SFTTrainer):
                         partial(cast_hook, self.model.dtype)
                     )
                 )
+        padding_side = self.tokenizer.padding_side
+        self.tokenizer.padding_side = "left"
 
         exact_match = 0
         has_answer = 0
@@ -290,12 +292,12 @@ class SquadSFTTrainer(SFTTrainer):
 
             offset = 0
             for answer_start in answer_starts:
-                answer_start = answer_start + offset
                 answer_end = answer_ends[answer_ends > answer_start][0] + offset
+                answer_start = answer_start + offset
 
                 answers = extract_answer(
                     self.tokenizer.decode(
-                        item["input_ids"][answer_start:], skip_special_tokens=True
+                        input_ids[answer_start:], skip_special_tokens=True
                     )
                 )
 
@@ -325,7 +327,7 @@ class SquadSFTTrainer(SFTTrainer):
                         input_ids[answer_end:],
                     ]
                 )
-                offset += answer_end - output.shape[1]
+                offset += output.shape[1] - answer_end
 
             if answers is None:
                 logger.warn("Answer not found in prompt, skipping...")
@@ -347,6 +349,7 @@ class SquadSFTTrainer(SFTTrainer):
             "eval_no_answer_correct": no_answer_correct,
         }
 
+        self.tokenizer.padding_side = padding_side
         for hook_handle in hook_handles:
             hook_handle.remove()
 
