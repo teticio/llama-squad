@@ -27,7 +27,7 @@ class ScriptArguments:
     )
 
 
-def get_single_turn_prompt_and_response(item, all_answers=False):
+def get_single_turn_prompt_and_response(item, config, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
@@ -71,7 +71,7 @@ def get_single_turn_prompt_and_response(item, all_answers=False):
     }
 
 
-def get_multi_turn_prompt_and_response(item, all_answers=False):
+def get_multi_turn_prompt_and_response(item, config, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
@@ -156,10 +156,12 @@ if __name__ == "__main__":
         test_size=script_args.validation_ratio,
         seed=script_args.seed,
     )
-    train_dataset = dataset["train"].map(instruction)
-    val_dataset = dataset["test"].map(instruction, fn_kwargs={"all_answers": True})
+    train_dataset = dataset["train"].map(instruction, fn_kwargs={"config": config})
+    val_dataset = dataset["test"].map(
+        instruction, fn_kwargs={"config": config, "all_answers": True}
+    )
     test_dataset = squad_dataset["validation"].map(
-        instruction, fn_kwargs={"all_answers": True}
+        instruction, fn_kwargs={"config": config, "all_answers": True}
     )
     dataset = DatasetDict(
         {"train": train_dataset, "val": val_dataset, "test": test_dataset}

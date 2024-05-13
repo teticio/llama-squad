@@ -119,7 +119,7 @@ def check_input_token_length(
 
 def get_random_question_and_answers():
     item = random.choice(dataset)
-    messages = get_single_turn_prompt_and_response(item)["messages"]
+    messages = get_single_turn_prompt_and_response(item=item, config=config)["messages"]
     return (messages[1]["content"], item["answers"]["text"])
 
 
