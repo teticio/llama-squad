@@ -131,21 +131,22 @@ LORA works by inserting [low rank](https://web.stanford.edu/class/cs168/l/l9.pdf
 
 On the test set, the models achieve the following [results](https://docs.google.com/spreadsheets/d/1N4XyrAyzKOHEmpAFvfRzEjZZis1T61_ekFeFbFW0lYM/edit?usp=sharing), where we have included Llama 2 70b chat, GPT 3.5 Turbo and DeBERTa (an encoder model) for reference:
 
-| Model                           | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
-| ----------------------------------- | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
-| Llama 2 7b chat (base model)        | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
+| Model                                | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
+| ------------------------------------ | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
+| Llama 2 7b chat (base model)         | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
-| - 3.7 epochs                        | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
-| - 8.0 epochs 1 beam                 | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
-| - 8.0 epochs 10 beams               | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
-| Llama 2 70b chat (quantized)        | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
-| OpenAI GPT 3.5 Turbo*               | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
-| OpenAI GPT 4*                       | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
-| deepset/deberta-v3-large-squad2     | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
-| Llama 3 8b instruct (base model)    | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
-| - Fine-tuned single-turn 1.2 epochs | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
-| - 100 `<blah>`s 1.2 epochs          | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
-| - 25 `<blah>`s 1.2 epochs           | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
+| - 3.7 epochs                         | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
+| - 8.0 epochs 1 beam                  | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
+| - 8.0 epochs 10 beams                | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
+| Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
+| OpenAI GPT 3.5 Turbo*                | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
+| OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
+| deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
+| Llama 3 8b instruct (base model)     | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
+| - Fine-tuned single-turn 1.2 epochs  | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
+| - 100 `<blah>`s 1.2 epochs           | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
+| - 25 `<blah>`s 1.2 epochs            | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
+| - Multi-turn 25 `<blah>`s 1.2 epochs | 99.98%       | 69.19%        | 69.20%              | 72.68%              | 65.69%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
