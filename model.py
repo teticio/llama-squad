@@ -86,7 +86,9 @@ def add_reasoning_tokens(
             tokenizer=tokenizer,
             model=model,
         )
-        reasoning_token_ids = torch.tensor(tokenizer.encode("".join(reasoning_tokens)))
+        reasoning_token_ids = torch.tensor(
+            tokenizer.encode("".join(reasoning_tokens), add_special_tokens=False)
+        )
 
     return reasoning_token_ids
 
