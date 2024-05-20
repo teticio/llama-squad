@@ -123,7 +123,7 @@ def get_random_question_and_answers():
     return (messages[1]["content"], item["answers"]["text"])
 
 
-model, tokenizer = get_model_and_tokenizer(
+model, tokenizer, _ = get_model_and_tokenizer(
     model_name=config.model_name,
     adapter_name=script_args.adapter_name,
     quantize=script_args.quantize,

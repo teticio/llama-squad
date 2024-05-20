@@ -6,6 +6,7 @@ from datasets import load_from_disk
 from transformers import AutoTokenizer
 
 from llama_squad import SquadDataCollator
+from model import add_reasoning_tokens
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
@@ -15,12 +16,11 @@ tokenizer = AutoTokenizer.from_pretrained(config.model_name)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
-# add special <blah> token
-if config.reasoning_tokens > 0:
-    tokenizer.add_special_tokens(
-        special_tokens_dict={"additional_special_tokens": ["<blah>"]}
-    )
-blah_token = tokenizer.vocab.get("<blah>")
+reasoning_tokens = add_reasoning_tokens(
+    num_reasoning_tokens=config.num_reasoning_tokens,
+    multiple_reasoning_tokens=config.multiple_reasoning_tokens,
+    tokenizer=tokenizer,
+)
 
 if "Llama-3" in tokenizer.name_or_path:
     answer_start_tokens = torch.tensor(
@@ -37,7 +37,7 @@ else:
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=torch.tensor([-100]),
-    blah_token=blah_token,
+    reasoning_tokens=reasoning_tokens,
     tokenizer=tokenizer,
     mlm=False,
 )

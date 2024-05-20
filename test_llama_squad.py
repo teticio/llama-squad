@@ -45,7 +45,7 @@ config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 logging.basicConfig(level=logging.DEBUG if script_args.debug else logging.INFO)
 
-model, tokenizer = get_model_and_tokenizer(
+model, tokenizer, _ = get_model_and_tokenizer(
     model_name=config.model_name,
     adapter_name=script_args.adapter_name,
     tokenizer_name=script_args.tokenizer_name,

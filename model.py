@@ -28,21 +28,27 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
-# Llama 3 has several <|reserved_special_token_...|> that could be use instead
-REASONING = "".join(["<blah>"] * config.reasoning_tokens)
+# Llama 3 has several <|reserved_special_token_...|> that could be uses instead
+REASONING = (
+    "".join([f"<blah_{i}>" for i in range(config.num_reasoning_tokens)])
+    if config.multiple_reasoning_tokens
+    else "".join(["<blah>"] * config.num_reasoning_tokens)
+)
 
 
 # from https://github.com/artidoro/qlora/blob/7f4e95a68dc076bea9b3a413d2b512eca6d004e5/qlora.py#L425
 def smart_tokenizer_and_embedding_resize(
     special_tokens_dict: Dict,
     tokenizer: AutoTokenizer,
-    model: AutoModelForCausalLM,
+    model: Optional[AutoModelForCausalLM],
 ):
     """Resize tokenizer and embedding.
 
     Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
     """
     num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    if model is None:
+        return
     model.resize_token_embeddings(len(tokenizer))
 
     if num_new_tokens > 0:
@@ -58,6 +64,31 @@ def smart_tokenizer_and_embedding_resize(
 
         input_embeddings_data[-num_new_tokens:] = input_embeddings_avg
         output_embeddings_data[-num_new_tokens:] = output_embeddings_avg
+
+
+def add_reasoning_tokens(
+    num_reasoning_tokens: int,
+    multiple_reasoning_tokens: bool,
+    tokenizer: AutoTokenizer,
+    model: Optional[AutoModelForCausalLM] = None,
+) -> torch.Tensor:
+    reasoning_token_ids = torch.tensor([])
+
+    # add special <blah> tokens
+    if num_reasoning_tokens > 0:
+        reasoning_tokens = (
+            [f"<blah_{i}>" for i in range(num_reasoning_tokens)]
+            if multiple_reasoning_tokens
+            else ["<blah>"]
+        )
+        smart_tokenizer_and_embedding_resize(
+            special_tokens_dict={"additional_special_tokens": reasoning_tokens},
+            tokenizer=tokenizer,
+            model=model,
+        )
+        reasoning_token_ids = torch.tensor(tokenizer.encode("".join(reasoning_tokens)))
+
+    return reasoning_token_ids
 
 
 def get_model_and_tokenizer(
@@ -89,22 +120,23 @@ def get_model_and_tokenizer(
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_name if tokenizer_name else model_name, trust_remote_code=True, use_fast=True
+        tokenizer_name if tokenizer_name else model_name,
+        trust_remote_code=True,
+        use_fast=True,
     )
     tokenizer.pad_token = tokenizer.eos_token
 
-    # add special <blah> token
-    if config.reasoning_tokens > 0:
-        smart_tokenizer_and_embedding_resize(
-            special_tokens_dict={"additional_special_tokens": ["<blah>"]},
-            tokenizer=tokenizer,
-            model=model,
-        )
+    reasoning_tokens = add_reasoning_tokens(
+        num_reasoning_tokens=config.num_reasoning_tokens,
+        multiple_reasoning_tokens=config.multiple_reasoning_tokens,
+        tokenizer=tokenizer,
+        model=model,
+    )
 
     if adapter_name is not None:
         model = PeftModel.from_pretrained(model, adapter_name, device_map="auto")
 
-    return model, tokenizer
+    return model, tokenizer, reasoning_tokens
 
 
 def get_prompt(

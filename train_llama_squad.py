@@ -146,7 +146,7 @@ config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
 def create_and_prepare_model(args):
     compute_dtype = getattr(torch, args.bnb_4bit_compute_dtype)
-    model, tokenizer = get_model_and_tokenizer(
+    model, tokenizer, reasoning_tokens = get_model_and_tokenizer(
         model_name=config.model_name,
         quantize=args.use_4bit,
         load_in_4bit=args.use_4bit,
@@ -177,7 +177,7 @@ def create_and_prepare_model(args):
         task_type="CAUSAL_LM",
     )
 
-    return model, peft_config, tokenizer
+    return model, peft_config, tokenizer, reasoning_tokens
 
 
 training_arguments = TrainingArguments(
@@ -200,15 +200,13 @@ training_arguments = TrainingArguments(
     eval_steps=script_args.eval_steps,
 )
 
-model, peft_config, tokenizer = create_and_prepare_model(script_args)
+model, peft_config, tokenizer, reasoning_tokens = create_and_prepare_model(script_args)
 model.config.use_cache = False
 train_dataset = load_from_disk(config.dataset_name)["train"]
 eval_dataset = load_from_disk(config.dataset_name)["val"]
 
 # Fix weird overflow issue with fp16 training. (Is this still necessary?)
 tokenizer.padding_side = "right"
-
-blah_token = tokenizer.vocab.get("<blah>")
 
 if "Llama-3" in tokenizer.name_or_path:
     answer_start_tokens = torch.tensor(
@@ -230,7 +228,7 @@ else:
 data_collator = SquadDataCollator(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=torch.tensor([-100]),  # Hugging Face sets the end token to -100
-    blah_token=blah_token,
+    reasoning_tokens=reasoning_tokens,
     tokenizer=tokenizer,
     mlm=False,
 )
@@ -238,7 +236,7 @@ data_collator = SquadDataCollator(
 trainer = SquadSFTTrainer(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=answer_end_tokens,
-    reasoning_tokens=config.reasoning_tokens,
+    reasoning_tokens=reasoning_tokens,
     model=model,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
