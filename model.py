@@ -274,14 +274,14 @@ class SquadSFTTrainer(SFTTrainer):
         self,
         answer_start_tokens: torch.Tensor,
         answer_end_tokens: torch.Tensor,
-        reasoning_tokens: int,
+        num_reasoning_tokens: int,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.answer_start_tokens = answer_start_tokens
         self.answer_end_tokens = answer_end_tokens
-        self.reasoning_tokens = reasoning_tokens
+        self.num_reasoning_tokens = num_reasoning_tokens
         self.stopping_criteria = StoppingCriteriaList(
             [StopAfterTokens(self.answer_end_tokens)]
         )
@@ -314,7 +314,7 @@ class SquadSFTTrainer(SFTTrainer):
             answer_starts = (
                 (window == answer_start_tokens).all(dim=1).nonzero()[:, 0]
                 + answer_start_tokens.shape[0]
-                + self.reasoning_tokens[-1]
+                + self.num_reasoning_tokens
                 + 1
             )
             window = input_ids.unfold(0, answer_end_tokens.shape[0], 1)
