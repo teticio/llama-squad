@@ -1,4 +1,4 @@
-# based on ttps://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da
+# based on https://gist.github.com/younesbelkada/9f7f75c94bdc1981c8ca5cc937d4a4da
 
 # coding=utf-8
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
@@ -159,13 +159,14 @@ def create_and_prepare_model(args):
     model.config.pretraining_tp = 1
 
     model_modules = str(model.modules)
+    # pattern = r"\((\w+)\): (Linear|Embedding)"
     pattern = r"\((\w+)\): Linear"
     linear_layer_names = re.findall(pattern, model_modules)
 
     # target all linear layers
     names = []
     for name in linear_layer_names:
-        names.append(name)
+        names.append(name)#[0])
     target_modules = list(set(names))
 
     peft_config = LoraConfig(
@@ -236,7 +237,7 @@ data_collator = SquadDataCollator(
 trainer = SquadSFTTrainer(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=answer_end_tokens,
-    reasoning_tokens=reasoning_tokens,
+    num_reasoning_tokens=config.num_reasoning_tokens,
     model=model,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
