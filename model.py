@@ -314,7 +314,7 @@ class SquadSFTTrainer(SFTTrainer):
             answer_starts = (
                 (window == answer_start_tokens).all(dim=1).nonzero()[:, 0]
                 + answer_start_tokens.shape[0]
-                + self.reasoning_tokens
+                + self.reasoning_tokens[-1]
                 + 1
             )
             window = input_ids.unfold(0, answer_end_tokens.shape[0], 1)
