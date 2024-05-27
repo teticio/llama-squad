@@ -1,22 +1,18 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
 import random
-import yaml
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Iterator, Optional
 
 import gradio as gr
 import torch
+import yaml
 from datasets import load_dataset
 from transformers import HfArgumentParser
 
 from create_squad_dataset import get_single_turn_prompt_and_response
-from model import (
-    get_input_token_length,
-    get_model_and_tokenizer,
-    run,
-)
+from model import get_input_token_length, get_model_and_tokenizer, run
 
 
 @dataclass

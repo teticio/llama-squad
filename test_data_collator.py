@@ -5,7 +5,7 @@ import yaml
 from datasets import load_from_disk
 from transformers import AutoTokenizer
 
-from llama_squad import SquadDataCollator
+from llama_squad import LlamaSquadDataCollator
 from model import add_reasoning_tokens
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
@@ -34,7 +34,7 @@ else:
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
 
-data_collator = SquadDataCollator(
+data_collator = LlamaSquadDataCollator(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=torch.tensor([-100]),
     reasoning_tokens=reasoning_tokens,

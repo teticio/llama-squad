@@ -1,10 +1,11 @@
 # based on https://huggingface.co/spaces/huggingface-projects/llama-2-7b-chat
 
 import logging
+import os
 from functools import partial
 from threading import Thread
 from types import SimpleNamespace
-from typing import Dict, Iterator, Optional
+from typing import Iterator, Optional
 
 import json5
 import peft.tuners.lora.layer as lora_layer
@@ -19,8 +20,14 @@ from transformers import (
     StoppingCriteria,
     StoppingCriteriaList,
     TextIteratorStreamer,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+    TrainingArguments,
 )
 from trl import SFTTrainer
+
+from llama_squad import LlamaSquadModel
 
 handler = logging.StreamHandler()
 logger = logging.getLogger()
@@ -28,7 +35,7 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
-# Llama 3 has several <|reserved_special_token_...|> that could be uses instead
+# Llama 3 has several <|reserved_special_token_...|> that could be used instead
 REASONING = (
     "".join([f"<blah_{i}>" for i in range(config.num_reasoning_tokens)])
     if config.multiple_reasoning_tokens
@@ -36,41 +43,10 @@ REASONING = (
 )
 
 
-# from https://github.com/artidoro/qlora/blob/7f4e95a68dc076bea9b3a413d2b512eca6d004e5/qlora.py#L425
-def smart_tokenizer_and_embedding_resize(
-    special_tokens_dict: Dict,
-    tokenizer: AutoTokenizer,
-    model: Optional[AutoModelForCausalLM],
-):
-    """Resize tokenizer and embedding.
-
-    Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
-    """
-    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
-    if model is None:
-        return
-    model.resize_token_embeddings(len(tokenizer))
-
-    if num_new_tokens > 0:
-        input_embeddings_data = model.get_input_embeddings().weight.data
-        output_embeddings_data = model.get_output_embeddings().weight.data
-
-        input_embeddings_avg = input_embeddings_data[:-num_new_tokens].mean(
-            dim=0, keepdim=True
-        )
-        output_embeddings_avg = output_embeddings_data[:-num_new_tokens].mean(
-            dim=0, keepdim=True
-        )
-
-        input_embeddings_data[-num_new_tokens:] = input_embeddings_avg
-        output_embeddings_data[-num_new_tokens:] = output_embeddings_avg
-
-
 def add_reasoning_tokens(
     num_reasoning_tokens: int,
     multiple_reasoning_tokens: bool,
     tokenizer: AutoTokenizer,
-    model: Optional[AutoModelForCausalLM] = None,
 ) -> torch.Tensor:
     reasoning_token_ids = torch.tensor([])
 
@@ -81,11 +57,7 @@ def add_reasoning_tokens(
             if multiple_reasoning_tokens
             else ["<blah>"]
         )
-        smart_tokenizer_and_embedding_resize(
-            special_tokens_dict={"additional_special_tokens": reasoning_tokens},
-            tokenizer=tokenizer,
-            model=model,
-        )
+        tokenizer.add_special_tokens({"additional_special_tokens": reasoning_tokens})
         reasoning_token_ids = torch.tensor(
             tokenizer.encode("".join(reasoning_tokens), add_special_tokens=False)
         )
@@ -113,14 +85,6 @@ def get_model_and_tokenizer(
     else:
         bnb_config = None
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        quantization_config=bnb_config,
-        device_map="auto",
-        use_auth_token=True,
-        trust_remote_code=True,
-    )
-
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_name if tokenizer_name else model_name,
         trust_remote_code=True,
@@ -132,10 +96,26 @@ def get_model_and_tokenizer(
         num_reasoning_tokens=config.num_reasoning_tokens,
         multiple_reasoning_tokens=config.multiple_reasoning_tokens,
         tokenizer=tokenizer,
-        model=model,
     )
 
+    model = LlamaSquadModel.from_pretrained(
+        model_name,
+        quantization_config=bnb_config,
+        device_map="auto",
+        use_auth_token=True,
+        num_new_tokens=reasoning_tokens.shape[0],
+    )
+    model.patch_embeddings()
+
     if adapter_name is not None:
+        if hasattr(model, "new_embedding"):
+            checkpoint = os.path.join(adapter_name, "embedding.pt")
+            if os.path.exists(checkpoint):
+                model.new_embedding.weight = torch.nn.Parameter(
+                    torch.load(checkpoint, weights_only=True).to(
+                        model.new_embedding.weight.dtype
+                    )
+                )
         model = PeftModel.from_pretrained(model, adapter_name, device_map="auto")
 
     return model, tokenizer, reasoning_tokens
@@ -152,6 +132,15 @@ def get_prompt(
         messages.append({"role": "user", "content": user_message})
         messages.append({"role": "assistant", "content": assistant_message})
     messages.append({"role": "user", "content": message})
+
+    if len(chat_history) == 0:
+        prompt = tokenizer.apply_chat_template(
+            messages + [{"role": "assistant", "content": "PLACEHOLDER"}],
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+        return prompt[: prompt.rfind("PLACEHOLDER")] + REASONING
+
     return tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
@@ -271,7 +260,24 @@ def get_answer(messages, pipeline, num_beams=None, force_answer=True):
     return extract_answer(response), response
 
 
-class SquadSFTTrainer(SFTTrainer):
+class LlamaSquadCheckpointCallback(TrainerCallback):
+    def __init__(self, model: LlamaSquadModel):
+        self.model = model
+
+    def on_save(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs,
+    ):
+        checkpoint = os.path.join(
+            args.output_dir, f"checkpoint-{state.global_step}", "embedding.pt"
+        )
+        torch.save(self.model.new_embedding.weight, checkpoint)
+
+
+class LlamaSquadSFTTrainer(SFTTrainer):
     def __init__(
         self,
         answer_start_tokens: torch.Tensor,
@@ -287,6 +293,20 @@ class SquadSFTTrainer(SFTTrainer):
         self.stopping_criteria = StoppingCriteriaList(
             [StopAfterTokens(self.answer_end_tokens)]
         )
+        if self.num_reasoning_tokens > 0:
+            self.model.base_model.model.model.embed_tokens.new_embedding.weight.requires_grad = (
+                True
+            )
+
+    def load_embedding(self, checkpoint):
+        if hasattr(self.model.base_model.model.model.embed_tokens, "new_embedding"):
+            self.model.base_model.model.model.embed_tokens.new_embedding.weight = torch.nn.Parameter(
+                torch.load(
+                    os.path.join(checkpoint, "embedding.pt"), weights_only=True
+                ).to(
+                    self.model.base_model.model.model.embed_tokens.new_embedding.weight.dtype
+                )
+            )
 
     def evaluate(self, **kwargs):
         def cast_hook(dtype, module, inputs):

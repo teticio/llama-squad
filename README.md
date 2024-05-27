@@ -6,7 +6,7 @@
 
 Encoder models based on BERT typically excel at "exact tasks" such as SQuAD, however there is currently much less investment in training large Open Source encoder models, likely because they are less widely applicable out of the box than foundation models. The purpose is of this repo is to explore whether it is possible to combine the best of both worlds: the "reasoning" abilities of large foundation models and the specialization capabilities of encoder models.
 
-This repo uses the TRL (Transformer Reinforcement Library) to fine-tune Meta's Llama 2 & 3 models on the SQuAD v2 task. This is a particularly challenging task for generative (decoder) models like Llama, because it requires abstention when the answer is not in the context and exact extraction from the context when it is present. If we can fine-tune a decoder model so that it is more "honest" about what it cannot answer and to always give answers in a predictable format, then it should be possible to specialize these generalized foundation models on a wide range of tasks.
+This repo uses the TRL (Transformer Reinforcement Library) to fine-tune Meta's Llama 2 & 3 models on the SQuAD v2 task. This is a particularly challenging task for generative foundation models like Llama, because it requires abstention when the answer is not in the context and exact extraction from the context when it is present. If we can fine-tune a foundation model so that it is more "honest" about what it cannot answer and to always give answers in a predictable format, then it should be possible to specialize these generalized foundation models on a wide range of tasks.
 
 While a lot of progress has been made in the field of fine-tuning for more general tasks, we find that it is necessary to adapt the procedure in order to get good results.
 
@@ -22,7 +22,7 @@ Thankfully, there have been great advances in Open Source, from models like Llam
 
 As an aside, encoders are not usually used for generation, but they can be persuaded to do so. As they were pre-trained on Masked Language Modelling, you can get them to "fill in the blanks". Unfortunately, they quickly become incoherent when several blanks appear together. Nevertheless, using MCMC (Markov Chain Monte Carlo) methods, it is possible to get [good results](https://github.com/teticio/inBERTolate). If you attempt this with an encoder that has been fine-tuned on a specific task, you will find it generates gibberish. The "fine-tuning" is causing catastrophic forgetting that may or may not be an issue for your particular use case. Whatever the case, if a model can be used for multiple purposes, then the cost of training it can be more easily justified. I suspect that this is why currently available Open Source decoder models are so much larger than encoder models.
 
-It seems plausible that decoders may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer. Of course, the fact that decoder models can also give an explanation as part of the answer makes them more suitable for human validation.
+It seems plausible that decoder models may have some advantages over encoders for some tasks that require "reasoning". An encoder is specialized on a task by including a "head", which is often simply a dense layer. [Karpathy](https://www.youtube.com/watch?v=bZQun8Y4L2A) compares encoders to System 1 (automatic) thinking and decoders to System 2 (logical) thinking - Posner's classification of thought processes that was popularized by Daniel Kahneman. Indeed, Prompt Engineers have discovered that adding a seemingly innocuous instruction like "Think step by step" can improve the accuracy of the results. Certainly, the process of generating a sequence of tokens (words) requires much more computation than sticking a dense layer on top of an encoder, as you have to generate each token auto-regressively by feeding the previous generations into the model in sequence. This, combined with the "chat" approach of alternating between generated tokens and human input, seems to give the model more opportunity to "think" about the answer. Of course, the fact that decoder models can also generate an explanation makes them more suitable for human validation.
 
 So how can we specialize these generalized decoder models? How can we put the Human back In The Loop?
 
@@ -64,7 +64,7 @@ messages:
 
 We would like to retain the chat capacity of the model, while improving the accuracy of its responses. In order to this, we limit the cross entropy loss in the forward method of the model to only apply to the tokens in each of the assistant responses.
 
-We can train the model in this way by creating a custom `DataCollator` (see [`llama_squad.py`](llama_squad.py)) which sets the target tokens to which we do not want to apply cross entropy loss to `-100` (a special value in Hugging Face's `transformers` package). To verify which parts of the prompt the cross entropy loss will be applied to, you can run `python test_data_collator.py` and these sections will be coloured green.
+We can train the model in this way by creating a custom `DataCollator` (see `LlamaSquadDataCollector` in [`llama_squad.py`](llama_squad.py)) which sets the target tokens to which we do not want to apply cross entropy loss to `-100` (a special value in Hugging Face's `transformers` package). To verify which parts of the prompt the cross entropy loss will be applied to, you can run `python test_data_collator.py` and these sections will be coloured green.
 
 ### Blah blah blah
 
@@ -74,7 +74,11 @@ Think step by step and explain your reasoning.
 ````
 in the prompt. It would no doubt be beneficial to include the reasoning in the training data. As we do not have a ground-truth for the reasoning, one approach would be to use ChatGPT to generate it (knowing the answer) in a similar way to how the Alpaca model was trained.
 
-Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. When I tried this experiment in July 2023, I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would learn to at least space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight, and after reading the paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) first published in October 2023 (thanks Thom!), I realized that it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time, the output corresponding to these tokens is ignored and not fed back into the model auto-regressively, as it need not make any linguistic sense. I found it helped to also include start of the answer `\n```json` in the prompt, especially early on in the training. However, the results from the paper point to the importance of not just fine-tuning but pre-training the model with the `<blah>` tokens (or using their nomenclature, `<pause>` tokens); we are only doing LORA fine-tuning. During training, of course, we do not apply cross entropy loss to the outputs corresponding to these tokens.
+Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. When I tried this experiment in July 2023, I didn't obtain good results, as the model appeared to just learn to spit out these tokens. I tried masking the attention, in the hope that it would at least learn to space out the answer due to the relative positional embeddings, but this made the results worse. In hindsight, and after reading the paper ["Think before you speak: Training Language Models With Pause Tokens](https://arxiv.org/pdf/2310.02226) first published in October 2023 (thanks Thom!), I realized that it was important to use a special token that was *learnable* (i.e., one that was not already in the vocabulary). By introducing these tokens, we multiply the number of operations (or amount of "thinking") between the question and the answer. At inference time, the output corresponding to these tokens is ignored and not fed back into the model auto-regressively, as it need not make any linguistic sense. I found it helped to also include start of the answer `\n```json` in the prompt, especially early on in the training. However, the results from the paper point to the importance of not just fine-tuning but pre-training the model with the `<blah>` tokens (or using their nomenclature, `<pause>` tokens); we are only doing LORA fine-tuning. During training, of course, we do not apply cross entropy loss to the outputs corresponding to these tokens.
+
+This idea bears some similarity to [Prefix Tuning](https://arxiv.org/pdf/2101.00190) where, instead of prefixing the prompt with meaningful tokens, the corresponding embedding weights are trained as a continuous representation. We can generalize the `<blah>` tokens to `<blah_0><blah_1>...<blah_n>` and train the corresponding embedding weights. Note that weights are only added to the input embedding layer and not to the output embedding layer, so the model is not capable of generating `<blah>` tokens. Rather than applying LORA to the embedding layer, we choose to freeze the existing embedding weights and append a trainable weight matrix for the new tokens (see the `ExtendedEmbedding` class in [`llama_squad.py`](llama_squad.py)). Our method can be thought of as a combination of Prefix Tuning and Supervised Fine-Tuning.
+
+We obtained superior results by first training only the embedding layers (with the switch `--embedding_only`). In other words, the model learns to think before learning *what* to think. This approach also makes it easier to optimize *how much* to think (number of `<blah>` tokens) before performing the full fine-tuning.
 
 ### Multi-turn prompt
 
@@ -125,7 +129,7 @@ The first experiment was performed with a learning rate of `2e-4`. The model qui
 
 ### LORA rank
 
-LORA works by inserting [low rank](https://web.stanford.edu/class/cs168/l/l9.pdf) trainable weight matrices between layers, while freezing all the other weights. Lower rank matrices can be compressed into fewer parameters but are less expressive. We tried ranks of 16, 64 and 512 but didn't notice any significant difference in performance, so we settled on 64.
+LORA works by inserting [low rank](https://web.stanford.edu/class/cs168/l/l9.pdf) trainable weight matrices between layers, while freezing all the other weights. Lower rank matrices can be compressed into fewer parameters but are less expressive. We tried ranks of 16, 64 and 512 but didn't notice any significant difference in performance, so we settled on 64. For the Llama 3 experiments, we applied LORA to all the linear layers.
 
 ## Results
 
@@ -141,14 +145,19 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | OpenAI GPT 3.5 Turbo*                | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
-| deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | 94.67%              | 65.30%               |
+| deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | **94.67%**          | 65.30%               |
 | Llama 3 8b instruct (base model)     | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
 | - Fine-tuned single-turn 1.2 epochs  | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
-| - 100 `<blah>`s 1.2 epochs           | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
-| - 25 `<blah>`s 1.2 epochs            | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
-| - Multi-turn 25 `<blah>`s 1.2 epochs | 99.98%       | 69.19%        | 69.20%              | 72.68%              | 65.69%               |
+| - Multi-turn 25 `<blah>`s            | 99.98%       | 69.19%        | 69.20%              | 72.68%              | 65.69%               |
+| - Single-turn 25 `<blah>`s           | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
+| - 100 `<blah>`s                      | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
+| - 25 `<blah_n>`s                     | 99.98%       | 77.88%        | 77.90%              | 83.35%              | 72.40%               |
+| - 5 `<blah_n>`s                      |              |               |                     |                     |                      |
+| - 5 `<blah_n>`s 8.0 epochs           |              |               |                     |                     |                      |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
+
+### Llama 2
 
 The fine-tuned model has clearly learned to respect JSON format, has learned to abstain more often and has greatly improved the exact matches (although this is still far from SOTA!). In fact, it performs substantially better than its big brother Llama 70b chat and even beats OpenAI's GPT 4. Of course, DeBERTA is the clear winner - mainly thanks to its abstinence - but I suspect that it may have learned to abstain when the question is phrased in a particular way (e.g., "What is *not* a...".)
 
@@ -161,6 +170,10 @@ A qualitative analysis of the results reveals that the 7B parameter model is inh
 > What isn't Thomas Piketty's job?
 
 The table indicates that fine-tuning the 70B parameter model could yield interesting results. To give some idea of the cost, a A100 with 80Gb VRAM currently costs $1.69 an hour on [runpod.io](https://runpod.io). The maximum batch size that fits is 2 and 1 training step takes about 45 seconds, so 10,000 steps (1.2 epochs) would cost around $200.
+
+### Llama 3
+
+Llama 3 performed better than our Llama 2 model trained on one epoch out of the box. By introducing the reasoning tokens, we were even able to beat DeBERTA and obtain the highest exact match score when there is an answer of any of the models we tried by some margin. We also found that the reasoning tokens allowed us to better retain the ability of the model to give an explanation for its response (by simply not including these tokens in the follow-up questions). In this sense, we have managed to achieve our goal of getting the best of both worlds with a model that has comparable accuracy to encoder models and the reasoning capabilities of a foundation models. And importantly, we have put the Human back In The Loop, allowing us to continue to fine-tune our model with informative examples.
 
 ## How to use
 
@@ -192,15 +205,17 @@ dataset_name: data/squad_v2
 ```
 
 ```bash
-python train_llama_squad.py \
+python3 train_llama_squad.py \
 --bf16 \
---max_seq_length 4096 \
---per_device_train_batch_size 4 \
---gradient_accumulation_steps 4 \
---max_steps 10000 \
+--max_seq_length=4096 \
+--per_device_train_batch_size=1 \
+--gradient_accumulation_steps=16 \
+--max_steps=65000 \
 --merge_and_push \
---save_steps 1000 \
---learning_rate=2e-7
+--save_steps=1000 \
+--lr_scheduler_type=cosine \
+--learning_rate=1e-6 \
+--warmup_ratio=0.03
 ```
 
 Alternatively, to ensure you are using a reproducible environment, you can train in Docker with

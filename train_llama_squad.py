@@ -28,8 +28,12 @@ from datasets import load_from_disk
 from peft import LoraConfig
 from transformers import HfArgumentParser, TrainingArguments
 
-from llama_squad import SquadDataCollator
-from model import SquadSFTTrainer, get_model_and_tokenizer
+from llama_squad import LlamaSquadDataCollator
+from model import (
+    LlamaSquadCheckpointCallback,
+    LlamaSquadSFTTrainer,
+    get_model_and_tokenizer,
+)
 
 
 @dataclass
@@ -136,7 +140,9 @@ class ScriptArguments:
             "help": "The output directory where the model predictions and checkpoints will be written."
         },
     )
+    apply_lora_to_all_layers: Optional[bool] = field(default=True)
     resume_from_checkpoint: Optional[str] = field(default=None)
+    embedding_only: Optional[bool] = field(default=False)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -158,16 +164,16 @@ def create_and_prepare_model(args):
     # check: https://github.com/huggingface/transformers/pull/24906
     model.config.pretraining_tp = 1
 
-    model_modules = str(model.modules)
-    # pattern = r"\((\w+)\): (Linear|Embedding)"
-    pattern = r"\((\w+)\): Linear"
-    linear_layer_names = re.findall(pattern, model_modules)
-
-    # target all linear layers
-    names = []
-    for name in linear_layer_names:
-        names.append(name)#[0])
-    target_modules = list(set(names))
+    if args.apply_lora_to_all_layers:
+        model_modules = str(model.modules)
+        pattern = r"\((\w+)\): Linear"
+        linear_layer_names = re.findall(pattern, model_modules)
+        names = []
+        for name in linear_layer_names:
+            names.append(name)
+        target_modules = list(set(names))
+    else:
+        target_modules = None
 
     peft_config = LoraConfig(
         target_modules=target_modules,
@@ -226,7 +232,7 @@ else:
     )
     answer_end_tokens = torch.tensor(tokenizer.encode("</s>", add_special_tokens=False))
 
-data_collator = SquadDataCollator(
+data_collator = LlamaSquadDataCollator(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=torch.tensor([-100]),  # Hugging Face sets the end token to -100
     reasoning_tokens=reasoning_tokens,
@@ -234,7 +240,7 @@ data_collator = SquadDataCollator(
     mlm=False,
 )
 
-trainer = SquadSFTTrainer(
+trainer = LlamaSquadSFTTrainer(
     answer_start_tokens=answer_start_tokens,
     answer_end_tokens=answer_end_tokens,
     num_reasoning_tokens=config.num_reasoning_tokens,
@@ -250,7 +256,16 @@ trainer = SquadSFTTrainer(
     formatting_func=lambda items: tokenizer.apply_chat_template(
         items["messages"], tokenize=False
     ),
+    callbacks=[LlamaSquadCheckpointCallback(model)],
 )
+
+if script_args.embedding_only:
+    for name, param in model.named_parameters():
+        if "new_embedding" not in name:
+            param.requires_grad = False
+
+if script_args.resume_from_checkpoint:
+    trainer.load_embedding(script_args.resume_from_checkpoint)
 
 trainer.train(resume_from_checkpoint=script_args.resume_from_checkpoint)
 
