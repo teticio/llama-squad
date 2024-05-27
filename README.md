@@ -149,11 +149,11 @@ On the test set, the models achieve the following [results](https://docs.google.
 | Llama 3 8b instruct (base model)     | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
 | - Fine-tuned single-turn 1.2 epochs  | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
 | - Multi-turn 25 `<blah>`s            | 99.98%       | 69.19%        | 69.20%              | 72.68%              | 65.69%               |
-| - Single-turn 25 `<blah>`s           | 100.00%      | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
-| - 100 `<blah>`s                      | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
+| - Single-turn 25 `<blah>`s           | **100.00%**  | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
+| - 100 `<blah>`s                      | 99.98%       | 66.82%        | 66.83%              | 59.19%              | **74.46%**           |
 | - 25 `<blah_n>`s                     | 99.98%       | 77.88%        | 77.90%              | 83.35%              | 72.40%               |
-| - 5 `<blah_n>`s                      |              |               |                     |                     |                      |
-| - 5 `<blah_n>`s 8.0 epochs           |              |               |                     |                     |                      |
+| - 5 `<blah_n>`s                      | **100.00%**  | 79.96%        | 79.96%              | 85.80%              | 74.11%               |
+| - 5 `<blah_n>`s 3.0 epochs           | **100.00%**  | **80.13%**    | **80.13%**          | 86.24%              | 74.00%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
