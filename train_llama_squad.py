@@ -227,6 +227,7 @@ if "Llama-3" in tokenizer.name_or_path:
     )
 
 else:
+    assert "Llama-2" in tokenizer.name_or_path
     answer_start_tokens = torch.tensor(
         tokenizer.encode("[/INST] ", add_special_tokens=False)
     )
