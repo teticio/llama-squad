@@ -78,7 +78,7 @@ Alternatively we can replace the reasoning with `<blah><blah><blah>...` tokens. 
 
 This idea bears some similarity to [Prefix Tuning](https://arxiv.org/pdf/2101.00190) where, instead of prefixing the prompt with meaningful tokens, the corresponding embedding weights are trained as a continuous representation. We can generalize the `<blah>` tokens to `<blah_0><blah_1>...<blah_n>` and train the corresponding embedding weights. Note that weights are only added to the input embedding layer and not to the output embedding layer, so the model is not capable of generating `<blah>` tokens. Rather than applying LORA to the embedding layer, we choose to freeze the existing embedding weights and append a trainable weight matrix for the new tokens (see the `ExtendedEmbedding` class in [`llama_squad.py`](llama_squad.py)). Our method can be thought of as a combination of Prefix Tuning and Supervised Fine-Tuning.
 
-We obtained superior results by first training only the embedding layers (with the switch `--embedding_only`). In other words, the model learns to think before learning *what* to think. This approach also makes it easier to optimize *how much* to think (number of `<blah>` tokens) before performing the full fine-tuning.
+We obtained superior results by first training only the embedding layers (with the switch `--embedding_only`) and then training the LORA layers (passing in `--embedding_checkpoint`). In other words, the model learns to think before learning *what* to think. This approach also makes it easier to optimize *how much* to think (number of `<blah>` tokens) before performing the full fine-tuning.
 
 ### Multi-turn prompt
 

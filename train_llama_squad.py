@@ -143,6 +143,7 @@ class ScriptArguments:
     apply_lora_to_all_layers: Optional[bool] = field(default=True)
     resume_from_checkpoint: Optional[str] = field(default=None)
     embedding_only: Optional[bool] = field(default=False)
+    embedding_checkpoint: Optional[str] = field(default=None)
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -265,8 +266,8 @@ if script_args.embedding_only:
         if "new_embedding" not in name:
             param.requires_grad = False
 
-if script_args.resume_from_checkpoint:
-    trainer.load_embedding(script_args.resume_from_checkpoint)
+if script_args.resume_from_checkpoint or script_args.embedding_checkpoint:
+    trainer.load_embedding(script_args.embedding_checkpoint)
 
 trainer.train(resume_from_checkpoint=script_args.resume_from_checkpoint)
 
