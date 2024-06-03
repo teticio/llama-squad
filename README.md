@@ -137,21 +137,23 @@ On the test set, the models achieve the following [results](https://docs.google.
 
 | Model                                | % Valid JSON | % Exact Match | % EM for Valid JSON | % Correct No Answer | % Correct Has Answer |
 | ------------------------------------ | ------------ | ------------- | ------------------- | ------------------- | -------------------- |
+| OpenAI GPT 3.5 Turbo*                | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
+| OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
+| deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | **94.67%**          | 65.30%               |
+| Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | Llama 2 7b chat (base model)         | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
 | - 3.7 epochs                         | 98.85%       | 64.71%        | 65.46%              | 65.85%              | 63.56%               |
 | - 8.0 epochs 1 beam                  | 98.83%       | 73.11%        | 73.97%              | 79.90%              | 66.30%               |
 | - 8.0 epochs 10 beams                | 99.75%       | 74.99%        | 75.18%              | 82.02%              | 67.95%               |
-| Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
-| OpenAI GPT 3.5 Turbo*                | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
-| OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
-| deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | **94.67%**          | 65.30%               |
 | Llama 3 8b instruct (base model)     | 96.98%       | 51.85%        | 53.47%              | 37.21%              | 66.54%               |
 | - Fine-tuned single-turn 1.2 epochs  | 99.83%       | 70.03%        | 70.15%              | 69.92%              | 70.13%               |
 | - Multi-turn 25 `<blah>`s            | 99.98%       | 69.19%        | 69.20%              | 72.68%              | 65.69%               |
 | - Single-turn 25 `<blah>`s           | **100.00%**  | 72.45%        | 72.45%              | 77.21%              | 67.68%               |
-| - 100 `<blah>`s                      | 99.98%       | 66.82%        | 66.83%              | 59.19%              | **74.46%**           |
+| - 100 `<blah>`s                      | 99.98%       | 66.82%        | 66.83%              | 59.19%              | 74.46%               |
+| - 25 `<blah_n>`s embedding only      | 97.97%       | 69.70%        | 69.73%              | 64.22%              | **75.20%**           |
 | - 25 `<blah_n>`s                     | 99.98%       | 77.88%        | 77.90%              | 83.35%              | 72.40%               |
+| - 5 `<blah_n>`s embedding only       | **100.00%**  | 75.15%        | 75.15%              | 93.78%              | 56.48%               |
 | - 5 `<blah_n>`s                      | **100.00%**  | 79.96%        | 79.96%              | 85.80%              | 74.11%               |
 | - 5 `<blah_n>`s 3.0 epochs           | **100.00%**  | **80.13%**    | **80.13%**          | 86.24%              | 74.00%               |
 
@@ -173,7 +175,9 @@ The table indicates that fine-tuning the 70B parameter model could yield interes
 
 ### Llama 3
 
-Llama 3 performed better than our Llama 2 model trained on one epoch out of the box. By introducing the reasoning tokens, we were even able to beat DeBERTA and obtain the highest exact match score when there is an answer of any of the models we tried by some margin. We also found that the reasoning tokens allowed us to better retain the ability of the model to give an explanation for its response (by simply not including these tokens in the follow-up questions). In this sense, we have managed to achieve our goal of getting the best of both worlds with a model that has comparable accuracy to encoder models and the reasoning capabilities of a foundation models. And importantly, we have put the Human back In The Loop, allowing us to continue to fine-tune our model with informative examples.
+Llama 3 performed better out of the box than our Llama 2 model trained on one epoch. By introducing the reasoning tokens, we were even able to beat DeBERTA and obtain the highest exact match score when there is an answer of any of the models we tried by some margin. Interestingly, reducing the number of reasoning tokens improved the ability of the model to abstain. Perhaps this is an example of avoiding "over-thinking" the answer.
+
+We also found that the reasoning tokens allowed us to better retain the ability of the model to give an explanation for its response (by simply not including these tokens in the follow-up questions). In this sense, we have managed to achieve our goal of getting the best of both worlds with a model that has comparable accuracy to encoder models and the reasoning capabilities of a foundation models. And importantly, we have put the Human back In The Loop, allowing us to continue to fine-tune our model with informative examples.
 
 ## How to use
 
