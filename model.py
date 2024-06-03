@@ -11,6 +11,7 @@ import json5
 import peft.tuners.lora.layer as lora_layer
 import torch
 import yaml
+from huggingface_hub import hf_hub_download
 from peft import PeftModel
 from tqdm import tqdm
 from transformers import (
@@ -110,7 +111,11 @@ def get_model_and_tokenizer(
     if adapter_name is not None:
         if hasattr(model, "new_embedding"):
             checkpoint = os.path.join(adapter_name, "embedding.pt")
-            if os.path.exists(checkpoint):
+            if not os.path.exists(checkpoint):
+                checkpoint = hf_hub_download(
+                    adapter_name,
+                    "embedding.pt",
+                )
                 model.new_embedding.weight = torch.nn.Parameter(
                     torch.load(checkpoint, weights_only=True).to(
                         model.new_embedding.weight.dtype

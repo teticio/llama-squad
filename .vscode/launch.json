@@ -52,7 +52,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/test_llama_squad.py",
             "args": [
-                "--adapter_name", "results/checkpoint-2000",
+                "--adapter_name", "teticio/llama_3_8b_5_blah_ns",
                 "--num_samples", "100",
                 "--shuffle", "True",
                 "--seed", "12345",

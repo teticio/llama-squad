@@ -155,7 +155,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | - 25 `<blah_n>`s                     | 99.98%       | 77.88%        | 77.90%              | 83.35%              | 72.40%               |
 | - 5 `<blah_n>`s embedding only       | **100.00%**  | 75.15%        | 75.15%              | 93.78%              | 56.48%               |
 | - 5 `<blah_n>`s                      | **100.00%**  | 79.96%        | 79.96%              | 85.80%              | 74.11%               |
-| - 5 `<blah_n>`s 3.0 epochs           | **100.00%**  | **80.13%**    | **80.13%**          | 86.24%              | 74.00%               |
+| - [5 `<blah_n>`s 3.0 epochs](https://huggingface.co/teticio/llama_3_8b_5_blah_ns) | **100.00%**  | **80.13%**    | **80.13%**          | 86.24%              | 74.00%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
@@ -186,6 +186,22 @@ We also found that the reasoning tokens allowed us to better retain the ability 
 ```bash
 pip install -r requirements.txt
 ```
+
+### Test model interactively
+
+You can test out the [`llama_3_8b_5_blah_ns`](https://huggingface.co/teticio/llama_3_8b_5_blah_ns) model interactively with
+
+```bash
+python app.py --adapter_name=teticio/llama_3_8b_5_blah_ns
+```
+
+or one you have trained yourself (see below) with
+
+```bash
+python app.py --adapter_name=results/final_checkpoints
+```
+
+It will answer your questions in JSON format, and you can ask it to explain its reasoning with a follow-up question. If you omit the `--adapter_name` parameter, it will use the base model. Ensure that the number of reasoning tokens in the `config.yaml` file is consistent with the model you are using.
 
 ### Create dataset
 
@@ -247,10 +263,4 @@ To see how the model performs on the benchmarks that are tracked in the [Open LL
 
 ```bash
 ./eval.sh <path_to_base_model> results/final_checkpoints
-```
-
-You can test out the model interactively with
-
-```bash
-python app.py --adapter_name=results/final_checkpoints
 ```
