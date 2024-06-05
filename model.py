@@ -276,10 +276,11 @@ class LlamaSquadCheckpointCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs,
     ):
-        checkpoint = os.path.join(
-            args.output_dir, f"checkpoint-{state.global_step}", "embedding.pt"
-        )
-        torch.save(self.model.new_embedding.weight, checkpoint)
+        if hasattr(self.model, "new_embedding"):
+            checkpoint = os.path.join(
+                args.output_dir, f"checkpoint-{state.global_step}", "embedding.pt"
+            )
+            torch.save(self.model.new_embedding.weight, checkpoint)
 
 
 class LlamaSquadSFTTrainer(SFTTrainer):
