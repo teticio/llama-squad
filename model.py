@@ -116,11 +116,11 @@ def get_model_and_tokenizer(
                     adapter_name,
                     "embedding.pt",
                 )
-                model.new_embedding.weight = torch.nn.Parameter(
-                    torch.load(checkpoint, weights_only=True).to(
-                        model.new_embedding.weight.dtype
-                    )
+            model.new_embedding.weight = torch.nn.Parameter(
+                torch.load(checkpoint, weights_only=True).to(
+                    model.new_embedding.weight.dtype
                 )
+            )
         model = PeftModel.from_pretrained(model, adapter_name, device_map="auto")
 
     return model, tokenizer, reasoning_tokens
