@@ -117,9 +117,9 @@ def get_model_and_tokenizer(
                     "embedding.pt",
                 )
             model.new_embedding.weight = torch.nn.Parameter(
-                torch.load(checkpoint, weights_only=True).to(
-                    model.new_embedding.weight.dtype
-                )
+                torch.load(checkpoint, weights_only=True)
+                .to(model.new_embedding.weight.dtype)
+                .to(model.new_embedding.weight.device)
             )
         model = PeftModel.from_pretrained(model, adapter_name, device_map="auto")
 
