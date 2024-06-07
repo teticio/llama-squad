@@ -8,8 +8,6 @@ import yaml
 from datasets import DatasetDict, load_dataset
 from transformers import HfArgumentParser
 
-from model import REASONING
-
 
 @dataclass
 class ScriptArguments:
@@ -27,12 +25,26 @@ class ScriptArguments:
     )
 
 
-def get_single_turn_prompt_and_response(item, config, all_answers=False):
+config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
+# Llama 3 has several <|reserved_special_token_...|> that could be used instead
+REASONING = (
+    "".join([f"<blah_{i}>" for i in range(config.num_reasoning_tokens)])
+    if config.multiple_reasoning_tokens
+    else "".join(["<blah>"] * config.num_reasoning_tokens)
+)
+NO_RESPONSE = "?"
+
+
+def is_exact_match(model_answer, answers):
+    return model_answer is not None and model_answer in answers
+
+
+def get_single_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
-        answers = ["?"]
+        answers = [NO_RESPONSE]
     if not all_answers:
         answers = answers[0]
     answers = json.dumps(answers)
@@ -50,7 +62,7 @@ def get_single_turn_prompt_and_response(item, config, all_answers=False):
                       "answer": ...
                     }}
                     ```
-                    If the answer is not in the context, the answer should be "?".
+                    If the answer is not in the context, the answer should be "{NO_RESPONSE}".
                     Context: {context}
                     Question: {question}"""
                 ),
@@ -71,13 +83,13 @@ def get_single_turn_prompt_and_response(item, config, all_answers=False):
     }
 
 
-def get_multi_turn_prompt_and_response(item, config, all_answers=False):
+def get_multi_turn_prompt_and_response(item, all_answers=False):
     context = item["context"]
     question = item["question"]
     answers = item["answers"]["text"]
     if len(answers) == 0:
         answer = False
-        answers = ["?"]
+        answers = [NO_RESPONSE]
     else:
         answer = True
     if not all_answers:
@@ -116,12 +128,12 @@ def get_multi_turn_prompt_and_response(item, config, all_answers=False):
             {
                 "role": "user",
                 "content": dedent(
-                    """\
-                    If the question has an answer in the context, extract the minimal span word for word from the context that best answers the question, otherwise the answer should be "?". Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
+                    f"""\
+                    If the question has an answer in the context, extract the minimal span word for word from the context that best answers the question, otherwise the answer should be "{NO_RESPONSE}". Think step by step and explain your reasoning. Then give the answer in JSON format as follows:
                     ```json
-                    {
+                    {{
                       "answer": ...
-                    }
+                    }}
                     ```"""
                 ),
             },
@@ -144,7 +156,6 @@ def get_multi_turn_prompt_and_response(item, config, all_answers=False):
 if __name__ == "__main__":
     parser = HfArgumentParser(ScriptArguments)
     script_args = parser.parse_args_into_dataclasses()[0]
-    config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
     instruction = {
         "single_turn": get_single_turn_prompt_and_response,
@@ -156,12 +167,10 @@ if __name__ == "__main__":
         test_size=script_args.validation_ratio,
         seed=script_args.seed,
     )
-    train_dataset = dataset["train"].map(instruction, fn_kwargs={"config": config})
-    val_dataset = dataset["test"].map(
-        instruction, fn_kwargs={"config": config, "all_answers": True}
-    )
+    train_dataset = dataset["train"].map(instruction)
+    val_dataset = dataset["test"].map(instruction, fn_kwargs={"all_answers": True})
     test_dataset = squad_dataset["validation"].map(
-        instruction, fn_kwargs={"config": config, "all_answers": True}
+        instruction, fn_kwargs={"all_answers": True}
     )
     dataset = DatasetDict(
         {"train": train_dataset, "val": val_dataset, "test": test_dataset}

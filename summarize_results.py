@@ -4,6 +4,8 @@ from typing import Optional
 
 from transformers import HfArgumentParser
 
+from create_squad_dataset import NO_RESPONSE
+
 
 @dataclass
 class ScriptArguments:
@@ -26,13 +28,13 @@ with open(script_args.csv_file, "r") as file:
     for row in reader:
         if row["Model answer"] != "":
             json_ok += 1
-        if row["Correct answers"] != '["?"]':
+        if row["Correct answers"] != f'[{NO_RESPONSE}"]':
             has_answer += 1
         if row["Exact match"] == "True":
             exact_matches += 1
             if row["Model answer"] != "":
                 em_json_ok += 1
-            if row["Correct answers"] != '["?"]':
+            if row["Correct answers"] != f'["{NO_RESPONSE}"]':
                 has_answer_correct += 1
             else:
                 no_answer_correct += 1
@@ -42,7 +44,7 @@ exact_matches = exact_matches / rows
 em_json_ok = em_json_ok / json_ok
 json_ok = json_ok / rows
 has_answer_correct = has_answer_correct / has_answer
-no_answer_correct = no_answer_correct / (rows - has_answer)
+no_answer_correct = no_answer_correct / (rows - has_answer) if rows != has_answer else 1
 
 print(f"Number of samples: {rows}")
 print(f"% Valid JSON: {json_ok * 100:.2f}%")

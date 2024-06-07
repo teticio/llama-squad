@@ -11,10 +11,8 @@ from datasets import load_from_disk
 from tqdm import tqdm
 from transformers import HfArgumentParser
 
+from create_squad_dataset import is_exact_match
 from model import extract_answer, get_answer, get_model_and_tokenizer
-
-logger = logging.getLogger()
-transformers.logging.set_verbosity_error()
 
 
 @dataclass
@@ -43,7 +41,9 @@ parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
 
-logging.basicConfig(level=logging.DEBUG if script_args.debug else logging.INFO)
+logger = logging.getLogger("test_llama_squad")
+logger.setLevel(level=logging.DEBUG if script_args.debug else logging.INFO)
+transformers.logging.set_verbosity_error()
 
 model, tokenizer, _ = get_model_and_tokenizer(
     model_name=config.model_name,
@@ -63,8 +63,7 @@ with open(script_args.output_csv_file, "w") as file:
     writer = csv.writer(file)
     writer.writerow(
         [
-            "Context",
-            "Question",
+            "Prompt",
             "Correct answers",
             "Model answer",
             "Full response",
@@ -84,10 +83,7 @@ with open(script_args.output_csv_file, "w") as file:
 
         answers = extract_answer(messages[-1]["content"])
         prompt = messages[1]["content"]
-        context = prompt[prompt.find("Context: ") + 9 : prompt.find("Question: ") - 1]
-        logger.debug("Context: %s", context)
-        question = prompt[prompt.find("Question: ") + 10 :]
-        logger.debug("Question: %s", question)
+        logger.debug("Prompt: %s", prompt)
         logger.debug("Correct answers: %s", answers)
 
         model_answer, full_response = get_answer(
@@ -96,14 +92,13 @@ with open(script_args.output_csv_file, "w") as file:
             num_beams=script_args.num_beams,
             force_answer=script_args.force_answer,
         )
-        logger.debug("Response: %s", full_response)
         logger.debug("Model answer: %s", model_answer)
-        exact_match = model_answer is not None and model_answer in answers
+        logger.debug("Response: %s", full_response)
+        exact_match = is_exact_match(model_answer, answers)
 
         writer.writerow(
             [
-                context,
-                question,
+                prompt,
                 json.dumps(answers),
                 model_answer,
                 full_response,

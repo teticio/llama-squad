@@ -4,13 +4,11 @@ import logging
 import os
 from functools import partial
 from threading import Thread
-from types import SimpleNamespace
 from typing import Iterator, Optional
 
 import json5
 import peft.tuners.lora.layer as lora_layer
 import torch
-import yaml
 from huggingface_hub import hf_hub_download
 from peft import PeftModel
 from tqdm import tqdm
@@ -28,20 +26,13 @@ from transformers import (
 )
 from trl import SFTTrainer
 
+from create_squad_dataset import NO_RESPONSE, REASONING, config, is_exact_match
 from llama_squad import LlamaSquadModel
 
 handler = logging.StreamHandler()
 logger = logging.getLogger()
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
-
-config = SimpleNamespace(**yaml.safe_load(open("config.yaml")))
-# Llama 3 has several <|reserved_special_token_...|> that could be used instead
-REASONING = (
-    "".join([f"<blah_{i}>" for i in range(config.num_reasoning_tokens)])
-    if config.multiple_reasoning_tokens
-    else "".join(["<blah>"] * config.num_reasoning_tokens)
-)
 
 
 def add_reasoning_tokens(
@@ -392,9 +383,9 @@ class LlamaSquadSFTTrainer(SFTTrainer):
             if answers is None:
                 logger.warn("Answer not found in prompt, skipping...")
                 continue
-            correct = 1 if model_answer is not None and model_answer in answers else 0
+            correct = 1 if is_exact_match(model_answer, answers) else 0
             exact_match += correct
-            if answers != ["?"]:
+            if answers != [NO_RESPONSE]:
                 has_answer += 1
                 has_answer_correct += correct
             else:
@@ -402,7 +393,11 @@ class LlamaSquadSFTTrainer(SFTTrainer):
 
         exact_match /= len(self.eval_dataset)
         has_answer_correct /= has_answer
-        no_answer_correct /= len(self.eval_dataset) - has_answer
+        no_answer_correct = (
+            no_answer_correct / (len(self.eval_dataset) - has_answer)
+            if len(self.eval_dataset) - has_answer > 0
+            else 1
+        )
         metrics = {
             "eval_exact_match": exact_match,
             "eval_has_answer_correct": has_answer_correct,
