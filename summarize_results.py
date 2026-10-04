@@ -28,7 +28,7 @@ with open(script_args.csv_file, "r") as file:
     for row in reader:
         if row["Model answer"] != "":
             json_ok += 1
-        if row["Correct answers"] != f'[{NO_RESPONSE}"]':
+        if row["Correct answers"] != f'["{NO_RESPONSE}"]':
             has_answer += 1
         if row["Exact match"] == "True":
             exact_matches += 1

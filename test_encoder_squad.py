@@ -18,7 +18,7 @@ class ScriptArguments:
 parser = HfArgumentParser(ScriptArguments)
 script_args = parser.parse_args_into_dataclasses()[0]
 
-dataset = load_dataset("squad_v2")["validation"]
+dataset = load_dataset("rajpurkar/squad_v2")["validation"]
 pipe = pipeline(
     "question-answering",
     model=script_args.model_name,

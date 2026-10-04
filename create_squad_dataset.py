@@ -162,7 +162,7 @@ if __name__ == "__main__":
         "multi_turn": get_multi_turn_prompt_and_response,
     }[script_args.prompt]
 
-    squad_dataset = load_dataset("squad_v2")
+    squad_dataset = load_dataset("rajpurkar/squad_v2")
     dataset = squad_dataset["train"].train_test_split(
         test_size=script_args.validation_ratio,
         seed=script_args.seed,
