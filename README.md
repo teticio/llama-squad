@@ -140,6 +140,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | OpenAI GPT 3.5 Turbo*                | 83.80%       | 47.60%        | 56.80%              | 40.78%              | 54.10%               |
 | OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
 | deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | **94.67%**          | 65.30%               |
+| TypeSafe Jev 1.13†                   | N/A          | 79.79%        | N/A                 | 91.24%              | 68.32%               |
 | Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | Llama 2 7b chat (base model)         | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
@@ -158,6 +159,8 @@ On the test set, the models achieve the following [results](https://docs.google.
 | - [5 `<blah_n>`s 3.0 epochs](https://huggingface.co/teticio/llama_3_8b_5_blah_ns) | **100.00%**  | **80.13%**    | **80.13%**          | 86.24%              | 74.00%               |
 
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
+
+† Jev does not generate text, so it was not given the same prompt as the other models. Instead, it was asked whether the question is answerable and to choose the first and last tokens of the span, followed by a second request to choose between the most likely candidate spans, given 8 examples of questions and answers from the training set (see [`test_jev_squad.py`](test_jev_squad.py)). The test was run on the full test set.
 
 ### Llama 2
 

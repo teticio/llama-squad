@@ -11,4 +11,5 @@ torch
 tqdm
 transformers
 trl
+typesafe-sdk
 wandb
