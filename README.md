@@ -141,6 +141,7 @@ On the test set, the models achieve the following [results](https://docs.google.
 | OpenAI GPT 4*                        | 99.90%       | 63.50%        | 63.56%              | 77.08%              | 50.30%               |
 | deepset/deberta-v3-large-squad2      | N/A          | 80.01%        | N/A                 | **94.67%**          | 65.30%               |
 | TypeSafe Jev 1.13†                   | N/A          | 79.79%        | N/A                 | 91.24%              | 68.32%               |
+| OpenAI Decisions (GPT 6 Luna)‡       | N/A          | 69.74%        | N/A                 | 89.45%              | 49.97%               |
 | Llama 2 70b chat (quantized)         | 95.30%       | 35.80%        | 37.57%              | 17.69%              | 54.12%               |
 | Llama 2 7b chat (base model)         | 66.42%       | 18.76%        | 28.24%              | 3.72%               | 33.82%               |
 | - [Fine-tuned single-turn 1.2 epochs](https://wandb.ai/teticio/huggingface/runs/p00jazs1) | 97.17%       | 47.22%        | 48.60%              | 39.44%              | 55.02%               |
@@ -161,6 +162,8 @@ On the test set, the models achieve the following [results](https://docs.google.
 \* In these cases, the test was run on a random subset of 1,000 examples, due to costs or long inference times.
 
 † Jev does not generate text, so it was not given the same prompt as the other models. Instead, it was asked whether the question is answerable and to choose the first and last tokens of the span, followed by a second request to choose between the most likely candidate spans, given 8 examples of questions and answers from the training set (see [`test_jev_squad.py`](test_jev_squad.py)). The test was run on the full test set.
+
+‡ The [Decisions API](https://developers.openai.com/api/docs/guides/decisions) was asked the same questions as Jev (see [`test_decisions_squad.py`](test_decisions_squad.py)), except that the most likely candidate span was chosen rather than the shortest span with at least 25% of the highest probability, which performed better on the validation set. The test was run on the full test set.
 
 ### Llama 2
 
